@@ -27,7 +27,6 @@ DEBUG = True
 
 BASE_DOMAIN = 'rmn.pp.ua'
 ALLOWED_HOSTS = [f'students.{BASE_DOMAIN}', '127.0.0.1', 'localhost']
-CSRF_TRUSTED_ORIGINS = [f'https://students.{BASE_DOMAIN}']
 
 
 INSTALLED_APPS = [
@@ -128,3 +127,5 @@ STATIC_ROOT = BASE_DIR / 'static'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 X_FRAME_OPTIONS = "ALLOW"
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE = True
