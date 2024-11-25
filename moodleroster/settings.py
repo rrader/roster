@@ -26,6 +26,7 @@ SECRET_KEY = 'django-insecure-f@ma$_^0@^7)edrprt@ig-qra+()0en7@qxelp)yox*eskb&m8
 DEBUG = True
 
 ALLOWED_HOSTS = ['roster.rmn.pp.ua']
+CSRF_TRUSTED_ORIGINS = ['https://roster.rmn.pp.ua']
 
 
 INSTALLED_APPS = [
