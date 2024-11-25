@@ -8,7 +8,9 @@ class MoodleLogoutMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
-        response.set_cookie('MoodleSession', '', domain=f'.{settings.BASE_DOMAIN}')
+        # if not redirecting to moodle, clear the cookie
+        if not response.has_header('Location'):
+            response.set_cookie('MoodleSession', '', domain=f'.{settings.BASE_DOMAIN}')
 
         return response
 
