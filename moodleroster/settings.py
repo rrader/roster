@@ -26,8 +26,8 @@ SECRET_KEY = 'django-insecure-f@ma$_^0@^7)edrprt@ig-qra+()0en7@qxelp)yox*eskb&m8
 DEBUG = True
 
 BASE_DOMAIN = 'rmn.pp.ua'
-ALLOWED_HOSTS = [f'roster.{BASE_DOMAIN}', '127.0.0.1', 'localhost']
-CSRF_TRUSTED_ORIGINS = [f'https://roster.{BASE_DOMAIN}']
+ALLOWED_HOSTS = [f'students.{BASE_DOMAIN}', '127.0.0.1', 'localhost']
+CSRF_TRUSTED_ORIGINS = [f'https://students.{BASE_DOMAIN}']
 
 
 INSTALLED_APPS = [
