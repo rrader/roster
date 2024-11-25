@@ -1,3 +1,4 @@
+from django.conf import settings
 
 
 class MoodleLogoutMiddleware:
@@ -7,7 +8,6 @@ class MoodleLogoutMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
-        response.delete_cookie('MoodleSession')
+        response.set_cookie('MoodleSession', '', domain=f'.{settings.BASE_DOMAIN}')
 
         return response
-

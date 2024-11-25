@@ -25,8 +25,9 @@ SECRET_KEY = 'django-insecure-f@ma$_^0@^7)edrprt@ig-qra+()0en7@qxelp)yox*eskb&m8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['roster.rmn.pp.ua', '127.0.0.1', 'localhost']
-CSRF_TRUSTED_ORIGINS = ['https://roster.rmn.pp.ua']
+BASE_DOMAIN = 'rmn.pp.ua'
+ALLOWED_HOSTS = [f'roster.{BASE_DOMAIN}', '127.0.0.1', 'localhost']
+CSRF_TRUSTED_ORIGINS = [f'https://roster.{BASE_DOMAIN}']
 
 
 INSTALLED_APPS = [
