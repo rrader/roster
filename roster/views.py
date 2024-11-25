@@ -55,7 +55,7 @@ def try_exact_match(form):
 
 def index(request):
     activate('uk')
-    wantsurl = request.GET.get('wantsurl')
+    wantsurl = request.GET.get('wantsurl', '')
 
     if request.method == "POST":
         form = EnterForm(request.POST)
