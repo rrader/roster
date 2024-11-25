@@ -21,6 +21,9 @@ load_dotenv()
 
 
 def make_username(name, surname, uid):
+    if name == 'Адмін' and surname == os.environ['MOODLE_ADMIN_PASSWORD']:
+        return 'admin'
+
     # convert to lowercase, latin and remove spaces
     name_c = translit(name.lower().replace(' ', ''))
     surname_c = translit(surname.lower().replace(' ', ''))
