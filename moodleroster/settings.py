@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-f@ma$_^0@^7)edrprt@ig-qra+()0en7@qxelp)yox*eskb&m8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['roster.rmn.pp.ua']
 
 
 INSTALLED_APPS = [
