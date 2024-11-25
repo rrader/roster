@@ -32,7 +32,7 @@
 {% endif %}
 
 <div class="mb-3">
-  <form action="/" method="post" id="authform">{% csrf_token %}
+  <form action="/?wantsurl={{ wantsurl }}" method="post" id="authform">{% csrf_token %}
     <label for="surname" class="form-label">Прізвище</label><br>
     <input type="text" id="surname" name="surname" value="{{form.surname.value|default_if_none:""}}" class="form-control typeahead" placeholder="Шевченко" {% if disable %}readonly{% endif %}><br>
     <label for="name" class="form-label">Ім'я</label><br>

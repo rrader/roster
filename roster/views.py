@@ -55,6 +55,7 @@ def try_exact_match(form):
 
 def index(request):
     activate('uk')
+    wantsurl = request.GET.get('wantsurl')
 
     if request.method == "POST":
         form = EnterForm(request.POST)
@@ -67,7 +68,8 @@ def index(request):
                 return render(request, 'index.html', {
                     'form': form,
                     'ask_new_account': True,
-                    'disable': True
+                    'disable': True,
+                    'wantsurl': wantsurl,
                 })
 
             elif form.cleaned_data['uid'] == 0 and form.cleaned_data['username'] == "__CONFIRM__":
@@ -79,7 +81,8 @@ def index(request):
                         'ask_new_account': True,
                         'form': form,
                         'proposed_users': propose,
-                        'disable': True
+                        'disable': True,
+                        'wantsurl': wantsurl,
                     })
                 # return render(request, 'index.html', {'form': form, 'disable': True})
                 # user should be created
@@ -103,13 +106,14 @@ def index(request):
                         'form': form,
                         'ask_new_account': True,
                         'proposed_users': propose,
-                        'disable': True
+                        'disable': True,
+                        'wantsurl': wantsurl,
                     })
 
             if the_user.username == 'admin':
                 return redirect(f'/key_required/{the_user.id}/')
 
-            url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email)
+            url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email, wantsurl)
             return redirect(url)
         else:
             return render(request, 'index.html', {'error': form.errors.as_data(), 'form': form})
@@ -117,7 +121,10 @@ def index(request):
     else:
         form = EnterForm()
 
-    return render(request, 'index.html', {"form": form})
+    return render(request, 'index.html', {
+        "form": form,
+        'wantsurl': wantsurl,
+    })
 
 
 def search_users_ajax(request):
@@ -135,7 +142,7 @@ def user_json(user):
     return {'surname': user.last_name, 'name': user.first_name}
 
 
-def moodle_auth(name, surname, username, email):
+def moodle_auth(name, surname, username, email, wantsurl):
     domainname = os.environ['MOODLE_URL']
     functionname = 'auth_userkey_request_login_url'
     # dotenv
@@ -155,7 +162,10 @@ def moodle_auth(name, surname, username, email):
         if resp_content and 'loginurl' in resp_content:
             logger.info("Login to Moodle was successful.")
 
-            return resp_content['loginurl']
+            loginurl = resp_content['loginurl']
+            if wantsurl:
+                loginurl += f'&wantsurl={wantsurl}'
+            return loginurl
         else:
             raise ValueError(f"Error during request to Moodle: {resp_content}")
     except Exception as e:
