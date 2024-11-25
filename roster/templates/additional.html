@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Вітаю!</h1>
+
+<p>Будь ласка, заповніть форму щоб увійти на урок</p>
+
+{% if error %}
+<div class="alert alert-danger" role="alert">
+  <ul class="errorlist">
+    {% if form.non_field_errors %}
+    <li>{{ form.non_field_errors }}</li>
+    {% endif %}
+    {% for field in form %}
+    {% if field.errors %}
+    <li>
+      {{ field.label }}
+      <ul class="errorlist">
+        {% for error in field.errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% endif %}
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="mb-3">
+  <form action="/" method="post" id="authform">{% csrf_token %}
+    <label for="surname" class="form-label">Прізвище</label><br>
+    <input type="text" id="surname" name="surname" value="{{form.surname.value|default_if_none:""}}" class="form-control typeahead" placeholder="Шевченко" {% if disable %}readonly{% endif %}><br>
+    <label for="name" class="form-label">Ім'я</label><br>
+    <input type="text" id="name" name="name" value="{{form.name.value|default_if_none:""}}" class="form-control" placeholder="Тарас" {% if disable %}readonly{% endif %}><br>
+
+    {% if proposed_users %}
+
+      Можливо, ви помилились? Оберіть своє ім'я зі списку, якщо воно є тут:
+
+      {% for puser in proposed_users %}
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="username" id="proposedUser{{ puser.id }}" value="{{ puser.username }}">
+          <label class="form-check-label" for="proposedUser{{ puser.id }}">
+            {{ puser.last_name }} {{ puser.first_name }}
+          </label>
+        </div>
+      {% endfor %}
+
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="username" id="proposedUserNEW" value="__NEW__">
+        <label class="form-check-label" for="proposedUserNEW">
+          Ні, не знайшов себе в списку.
+        </label>
+      </div>
+
+    {% elif ask_new_account %}
+
+    Створити новий акаунт з цими даними?
+    <input type="hidden" id="username" name="username" value="__NEW__"><br>
+
+    <a href="{% url 'index' %}" class="btn btn-primary mb-3">Ні, повернутись назад</a>
+
+    {% else %}
+      <input type="hidden" id="username" name="username" value="{{form.username.value|default_if_none:""}}"><br>
+    {% endif %}
+
+    <button type="submit" value="Submit" class="btn btn-primary mb-3">Увійти</button>
+  </form>
+</div>
+
+<script>
+
+  $(function() {
+    var surnames = new Bloodhound({
+      datumTokenizer: Bloodhound.tokenizers.whitespace,
+      queryTokenizer: Bloodhound.tokenizers.whitespace,
+      remote: {
+        url: "{% url 'search_users_ajax' %}",
+        replace: function(url, query) {
+          return url + "?surname=" + query;
+        }
+      }
+    });
+
+    $('.typeahead').typeahead({
+              hint: true,
+              minLength: 1,
+              highlight: true},
+            {name: 'names',
+              display: 'surname',
+              source: surnames.ttAdapter(),
+            });
+
+    $('.typeahead').bind('typeahead:select', function(ev, suggestion) {
+      $('#name').val(suggestion.name);
+    });
+  });
+
+</script>
+{% endblock %}
