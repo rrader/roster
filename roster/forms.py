@@ -62,12 +62,9 @@ class EnterForm(forms.Form):
             raise forms.ValidationError("Ім'я повинно бути українською без інших символів")
 
         return name
-#
-#
-# class FillDataForm(forms.Form):
-#     username = forms.CharField(label="Логін", max_length=100, required=True)
-#     email = forms.EmailField(label="Email", required=True)
-#
-#     def clean_email(self):
-#         email = self.cleaned_data['email']
-#         return email
+
+
+class KeyForm(forms.Form):
+    username = forms.CharField(label="Логін", max_length=100, required=True)
+    uid = forms.IntegerField(label="UserId", required=True)
+    key = forms.CharField(label="Ключ", required=True)

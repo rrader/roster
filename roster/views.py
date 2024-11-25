@@ -11,7 +11,7 @@ from django.shortcuts import render, redirect
 from django.utils.translation import activate
 from translitua import translit
 
-from roster.forms import EnterForm
+from roster.forms import EnterForm, KeyForm
 
 from fuzzy_match import algorithims
 
@@ -21,9 +21,6 @@ load_dotenv()
 
 
 def make_username(name, surname, uid):
-    if name == 'Адмін' and surname == os.environ['MOODLE_ADMIN_PASSWORD']:
-        return 'admin'
-
     # convert to lowercase, latin and remove spaces
     name_c = translit(name.lower().replace(' ', ''))
     surname_c = translit(surname.lower().replace(' ', ''))
@@ -109,6 +106,9 @@ def index(request):
                         'disable': True
                     })
 
+            if the_user.username == 'admin':
+                return redirect(f'/key_required/{the_user.id}/')
+
             url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email)
             return redirect(url)
         else:
@@ -162,3 +162,23 @@ def moodle_auth(name, surname, username, email):
         logger.exception(f"Error during request to Moodle: {e}")
         raise ValueError(e)
 
+
+def key_required(request, uid):
+    activate('uk')
+    the_user = User.objects.get(id=uid)
+
+    if request.method == "POST":
+        form = KeyForm(request.POST)
+        if form.is_valid():
+            if the_user.username == 'admin' and form.cleaned_data['key'] == os.environ['MOODLE_ADMIN_PASSWORD']:
+                url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email)
+                return redirect(url)
+            else:
+                return render(request, 'key.html', {'error': True, 'errortext': 'Невідомий користувач', 'form': form, "the_user": the_user})
+        else:
+            return render(request, 'key.html', {'error': form.errors.as_data(), 'form': form, "the_user": the_user})
+
+    else:
+        form = KeyForm()
+
+    return render(request, 'key.html', {"form": form, "the_user": the_user})

@@ -6,6 +6,6 @@ from . import views
 
 urlpatterns = [
     path("", views.index, name="index"),
-    # path("fill_data/<int:uid>/", views.fill_data, name="fill_data"),
+    path("key_required/<int:uid>/", views.key_required, name="key_required"),
     path("search_users_ajax/", views.search_users_ajax, name='search_users_ajax'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

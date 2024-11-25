@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Вітаю!</h1>
+
+<p>Для доступу необхідний ключ</p>
+
+{% if error %}
+<div class="alert alert-danger" role="alert">
+  <ul class="errorlist">
+    {% if errortext %}
+    <li>{{ errortext }}</li>
+    {% endif %}
+
+    {% if form.non_field_errors %}
+    <li>{{ form.non_field_errors }}</li>
+    {% endif %}
+    {% for field in form %}
+    {% if field.errors %}
+    <li>
+      {{ field.label }}
+      <ul class="errorlist">
+        {% for error in field.errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% endif %}
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="mb-3">
+  <form action="{% url 'key_required' the_user.id %}" method="post" id="authform">{% csrf_token %}
+    <label for="key" class="form-label">Введіть ключ</label><br>
+    <input type="text" id="key" name="key" value="{{form.key.value|default_if_none:""}}" class="form-control typeahead" placeholder="ключ" {% if disable %}readonly{% endif %}><br>
+
+    <input type="hidden" id="username" name="username" value="{{the_user.username}}"><br>
+    <input type="hidden" id="uid" name="uid" value="{{the_user.id}}"><br>
+
+    <button type="submit" value="Submit" class="btn btn-primary mb-3">Увійти</button>
+  </form>
+</div>
+
+{% endblock %}
