@@ -1,3 +1,7 @@
 django-bootstrap-v5
 fuzzy_match
 python-dotenv
+django
+requests
+translitua
+numpy
