@@ -20,6 +20,6 @@ class CSPMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
-        response.set_header('Content-Security-Policy', "frame-ancestors 'self' *.rmn.pp.ua sites.google.com ;")
+        response['Content-Security-Policy'] = "frame-ancestors 'self' *.rmn.pp.ua sites.google.com ;"
 
         return response
