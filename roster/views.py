@@ -36,7 +36,7 @@ def try_fuzzy_match(form):
     matched = []
     for user in users:
         d = algorithims.levenshtein(surname, user.last_name)
-        if d >= 0.8:
+        if d >= 0.6:
             matched.append((user, d))
 
     # sort by distance
