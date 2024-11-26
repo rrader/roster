@@ -9,11 +9,14 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.utils.translation import activate
+from django.conf import settings
 from translitua import translit
 
 from roster.forms import EnterForm, KeyForm
 
 from fuzzy_match import algorithims
+
+from roster.models import WorkplaceUserPlacement
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +59,7 @@ def try_exact_match(form):
 def index(request):
     activate('uk')
     wantsurl = request.GET.get('wantsurl', '')
+    workplace_id = request.COOKIES.get('WorkplaceId', '')
 
     if request.method == "POST":
         form = EnterForm(request.POST)
@@ -70,6 +74,7 @@ def index(request):
                     'ask_new_account': True,
                     'disable': True,
                     'wantsurl': wantsurl,
+                    'workplace_id': workplace_id,
                 })
 
             elif form.cleaned_data['uid'] == 0 and form.cleaned_data['username'] == "__CONFIRM__":
@@ -83,6 +88,7 @@ def index(request):
                         'proposed_users': propose,
                         'disable': True,
                         'wantsurl': wantsurl,
+                        'workplace_id': workplace_id,
                     })
                 # return render(request, 'index.html', {'form': form, 'disable': True})
                 # user should be created
@@ -108,15 +114,26 @@ def index(request):
                         'proposed_users': propose,
                         'disable': True,
                         'wantsurl': wantsurl,
+                        'workplace_id': workplace_id,
                     })
 
             if the_user.username == 'admin':
                 return redirect(f'/key_required/{the_user.id}/')
 
+            # create WorkplaceUserPlacement record
+            if workplace_id:
+                placement = WorkplaceUserPlacement.objects.create(user=the_user, workplace_id=workplace_id)
+                placement.save()
+
             url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email, wantsurl)
             return redirect(url)
         else:
-            return render(request, 'index.html', {'error': form.errors.as_data(), 'form': form})
+            return render(request, 'index.html', {
+                'error': form.errors.as_data(),
+                'form': form,
+                'wantsurl': wantsurl,
+                'workplace_id': workplace_id,
+            })
 
     else:
         form = EnterForm()
@@ -124,6 +141,7 @@ def index(request):
     return render(request, 'index.html', {
         "form": form,
         'wantsurl': wantsurl,
+        'workplace_id': workplace_id,
     })
 
 
@@ -192,3 +210,11 @@ def key_required(request, uid):
         form = KeyForm()
 
     return render(request, 'key.html', {"form": form, "the_user": the_user})
+
+
+def classroom_workplace_login(request, workplace_id):
+    activate('uk')
+
+    response = redirect(settings.CLASSROOM_URL)
+    response.set_cookie('WorkplaceId', workplace_id)
+    return response

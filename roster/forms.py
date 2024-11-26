@@ -14,6 +14,7 @@ class EnterForm(forms.Form):
     username = forms.CharField(label="Логін", max_length=100, required=False)
     uid = forms.IntegerField(label="UserId", required=False)
     email = forms.EmailField(label="Email", required=False)
+    workplace_id = forms.CharField(label="WorkplaceId", required=False)
 
     # def clean_email(self):
         # email = self.cleaned_data['email']

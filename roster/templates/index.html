@@ -37,6 +37,7 @@
     <input type="text" id="surname" name="surname" value="{{form.surname.value|default_if_none:""}}" class="form-control typeahead" placeholder="Шевченко" {% if disable %}readonly{% endif %}><br>
     <label for="name" class="form-label">Ім'я</label><br>
     <input type="text" id="name" name="name" value="{{form.name.value|default_if_none:""}}" class="form-control" placeholder="Тарас" {% if disable %}readonly{% endif %}><br>
+    <input type="hidden" id="workplace_id" name="workplace_id" value="{{workplace_id}}">
 
     {% if proposed_users %}
 
