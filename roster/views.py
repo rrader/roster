@@ -216,5 +216,5 @@ def classroom_workplace_login(request, workplace_id):
     activate('uk')
 
     response = redirect(settings.CLASSROOM_URL)
-    response.set_cookie('WorkplaceId', workplace_id, samesite='None')
+    response.set_cookie('WorkplaceId', workplace_id, samesite='None', secure=True)
     return response
