@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-3">
+
+  <!-- Filters -->
+  <div class="row mb-4 g-3">
+    <div class="col-md-2">
+      <form action="{% url 'classroom' %}" method="get">
+        <label for="dateFilter" class="form-label">Обрати дату:</label>
+        <input type="date" id="dateFilter" class="form-control" name="date" value="{{ date }}">
+
+        <label for="lessonFilter" class="form-label">Урок:</label>
+        <select id="lessonFilter" class="form-select" name="lesson">
+          {% for s in "12345678"|make_list %}
+          <option value="{{ s }}" {% if s == lesson %}selected{% endif %}>{{ s }} урок</option>
+          {% endfor %}
+        </select>
+
+        <label for="pairFilter" class="form-label">Пари:</label>
+        <input type="checkbox" id="pairFilter" class="form-check-input" name="pairs" {% if pairs %}checked{% endif %} value="on">
+
+        <br>
+
+        <button type="submit" class="btn btn-primary">Apply Filters</button>
+
+      </form>
+    </div>
+
+    <div class="col-md-7">
+      <h1>Кабінет 329</h1>
+
+      <div class="row">
+
+        <div class="col-md-6">
+
+          {% for c in classroom_2 %}
+
+          <div class="card text-center border-success mt-2">
+            <div class="card-body pt-1 pb-1">
+              <h5 class="card-title">Workplace {{ c.0 }}</h5>
+              {% for s in c.1 %}
+                {{s.user.last_name}} {{s.user.first_name}} <span class="text-success">{{s.created_at|date:"h:i" }}</span><br>
+              {% endfor %}
+            </div>
+          </div>
+
+          {% endfor %}
+
+        </div>
+
+        <div class="col-md-6">
+
+          {% for c in classroom_1 %}
+
+          <div class="card text-center border-success mt-2">
+            <div class="card-body pt-1 pb-1">
+              <h5 class="card-title">Workplace {{ c.0 }}</h5>
+              <p class="card-text">
+                {% for s in c.1 %}
+                  {{s.user.last_name}} {{s.user.first_name}} <span class="text-success">{{s.created_at|date:"h:i" }}</span><br>
+                {% endfor %}
+              </p>
+            </div>
+          </div>
+
+          {% endfor %}
+        </div>
+
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card text-center border-primary">
+        <div class="card-body">
+          <h5 class="card-title">Поточні фільтри</h5>
+          <p class="card-text">Уроки з {{lesson_from}} до {{lesson_to}}</p>
+
+          <p>{{lesson_start}} -<br> {{lesson_end}}</p>
+        </div>
+      </div>
+
+      <div class="alert alert-primary mt-3">
+        <strong>Користувачі у системі:</strong> <span id="studentsCount">{{ uniq }}</span>
+      </div>
+
+      <!-- user names list -->
+      <div class="list-group mt-3">
+          {% for u in usernames %}
+          <div class="list-group-item list-group-item-action">{{ u }}</div>
+          {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}

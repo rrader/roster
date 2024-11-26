@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 import os
+from datetime import time
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -110,7 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Kyiv'
 
 USE_I18N = True
 
@@ -134,3 +135,46 @@ CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SAMESITE = 'None'
+
+LESSONS_SCHEDULE = {
+    0: {
+        'start': time(8, 0),
+        'end': time(8, 30),
+    },
+    1: {
+        'start': time(9, 0),
+        'end': time(9, 45),
+    },
+    2: {
+        'start': time(9, 55),
+        'end': time(10, 40),
+    },
+    3: {
+        'start': time(10, 50),
+        'end': time(11, 35),
+    },
+    4: {
+        'start': time(11, 55),
+        'end': time(12, 40),
+    },
+    5: {
+        'start': time(13, 0),
+        'end': time(13, 45),
+    },
+    6: {
+        'start': time(13, 55),
+        'end': time(14, 40),
+    },
+    7: {
+        'start': time(14, 50),
+        'end': time(15, 35),
+    },
+    8: {
+        'start': time(15, 45),
+        'end': time(16, 30),
+    },
+    9: {
+        'start': time(23, 59),
+        'end': time(23, 59),
+    },
+}
