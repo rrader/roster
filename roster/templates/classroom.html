@@ -18,8 +18,8 @@
           {% endfor %}
         </select>
 
-        <label for="pairFilter" class="form-label">Пари:</label>
-        <input type="checkbox" id="pairFilter" class="form-check-input" name="pairs" {% if pairs %}checked{% endif %} value="on">
+        <label for="pairFilter" class="form-label">Одиночні уроки:</label>
+        <input type="checkbox" id="pairFilter" class="form-check-input" name="singles" {% if singles %}checked{% endif %} value="on">
 
         <br>
 
@@ -41,7 +41,7 @@
             <div class="card-body pt-1 pb-1">
               <h5 class="card-title">Workplace {{ c.0 }}</h5>
               {% for s in c.1 %}
-                {{s.user.last_name}} {{s.user.first_name}} <span class="text-success">{{s.created_at|date:"h:i" }}</span><br>
+                {{s.user.last_name}} {{s.user.first_name}} <span class="text-success">{{s.created_at|date:"H:i" }}</span><br>
               {% endfor %}
             </div>
           </div>
@@ -59,7 +59,7 @@
               <h5 class="card-title">Workplace {{ c.0 }}</h5>
               <p class="card-text">
                 {% for s in c.1 %}
-                  {{s.user.last_name}} {{s.user.first_name}} <span class="text-success">{{s.created_at|date:"h:i" }}</span><br>
+                  {{s.user.last_name}} {{s.user.first_name}} <span class="text-success">{{s.created_at|date:"H:i" }}</span><br>
                 {% endfor %}
               </p>
             </div>

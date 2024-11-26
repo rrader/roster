@@ -240,20 +240,16 @@ def classroom(request):
     today: str = datetime.date.today().strftime('%Y-%m-%d')
 
     date_str: str = request.GET.get('date', today)
-    pairs: bool = request.GET.get('pairs')
-    if pairs is None:
-        pairs = True
-    else:
-        pairs = pairs == 'on'
+    singles: bool = request.GET.get('singles', 'off') == 'on'
 
     date: datetime.date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
     lesson: int = int(request.GET.get('lesson', current_lesson(now = datetime.datetime.now())))
 
-    if pairs:
-        lesson_from = max(1, lesson-1)
+    if singles:
+        lesson_from = lesson
         lesson_to = lesson
     else:
-        lesson_from = lesson
+        lesson_from = max(1, lesson-1)
         lesson_to = lesson
 
     lesson_start = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_from - 1]['end'])
@@ -292,7 +288,7 @@ def classroom(request):
     return render(request, 'classroom.html', {
         'date': date_str,
         'lesson': str(lesson),
-        'pairs': pairs,
+        'singles': singles,
         'classroom_1': g1,
         'classroom_2': g2,
         'lesson_from': lesson_from,
