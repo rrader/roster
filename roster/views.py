@@ -236,7 +236,7 @@ def current_lesson(now):
 
 def classroom(request):
     activate('uk')
-    locale.setlocale(locale.LC_COLLATE, "uk_UA.UTF-8")
+    locale.setlocale(locale.LC_COLLATE, "uk_UA.utf8")
 
     # default to today in YYYY-mm-dd format
     today: str = datetime.date.today().strftime('%Y-%m-%d')
