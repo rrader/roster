@@ -1,5 +1,6 @@
 import datetime
 import logging
+import locale
 import os
 import re
 import uuid
@@ -235,6 +236,7 @@ def current_lesson(now):
 
 def classroom(request):
     activate('uk')
+    locale.setlocale(locale.LC_COLLATE, "uk_UA.UTF-8")
 
     # default to today in YYYY-mm-dd format
     today: str = datetime.date.today().strftime('%Y-%m-%d')
