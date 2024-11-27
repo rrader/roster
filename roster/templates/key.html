@@ -34,7 +34,7 @@
 <div class="mb-3">
   <form action="{% url 'key_required' the_user.id %}" method="post" id="authform">{% csrf_token %}
     <label for="key" class="form-label">Введіть ключ</label><br>
-    <input type="text" id="key" name="key" value="{{form.key.value|default_if_none:""}}" class="form-control typeahead" placeholder="ключ" {% if disable %}readonly{% endif %}><br>
+    <input type="password" id="key" name="key" value="{{form.key.value|default_if_none:""}}" class="form-control typeahead" placeholder="ключ" {% if disable %}readonly{% endif %}><br>
 
     <input type="hidden" id="username" name="username" value="{{the_user.username}}"><br>
     <input type="hidden" id="uid" name="uid" value="{{the_user.id}}"><br>
