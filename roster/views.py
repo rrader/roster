@@ -234,8 +234,8 @@ def current_lesson(now):
 
 
 def sort_ukrainian(usernames):
-    alphabet = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя"
-    return sorted(usernames, key=lambda x: [alphabet.index(c) for c in x.lower()])
+    alphabet = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя "
+    return sorted(usernames, key=lambda x: [alphabet.index(c) for c in x.lower()[:2]])
 
 
 def classroom(request):
