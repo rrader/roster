@@ -81,6 +81,17 @@ def index(request):
                 })
 
             elif form.cleaned_data['uid'] == 0 and form.cleaned_data['username'] == "__CONFIRM__":
+                if not form.cleaned_data['email']:
+                    return render(request, 'index.html', {
+                        'error': True,
+                        'errortext': 'Потрібно вказати пошту',
+                        'ask_new_account': True,
+                        'form': form,
+                        'disable': True,
+                        'wantsurl': wantsurl,
+                        'workplace_id': workplace_id,
+                    })
+
                 if User.objects.filter(email=form.cleaned_data['email']).exists():
                     propose = User.objects.filter(email=form.cleaned_data['email'])
                     return render(request, 'index.html', {
@@ -93,7 +104,7 @@ def index(request):
                         'wantsurl': wantsurl,
                         'workplace_id': workplace_id,
                     })
-                # return render(request, 'index.html', {'form': form, 'disable': True})
+
                 # user should be created
                 the_user = User.objects.create_user(
                     first_name=form.cleaned_data['name'],
