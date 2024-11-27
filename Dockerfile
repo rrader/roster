@@ -7,7 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 COPY requirements.txt .
-RUN apt-get update && apt install -y language-pack-uk && apt-get clean
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 

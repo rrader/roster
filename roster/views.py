@@ -1,6 +1,5 @@
 import datetime
 import logging
-import locale
 import os
 import re
 import uuid
@@ -234,9 +233,13 @@ def current_lesson(now):
     return last
 
 
+def sort_ukrainian(usernames):
+    alphabet = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя"
+    return sorted(usernames, key=lambda x: [alphabet.index(c) for c in x.lower()])
+
+
 def classroom(request):
     activate('uk')
-    locale.setlocale(locale.LC_COLLATE, "uk_UA.utf8")
 
     # default to today in YYYY-mm-dd format
     today: str = datetime.date.today().strftime('%Y-%m-%d')
@@ -298,5 +301,5 @@ def classroom(request):
         'lesson_start': lesson_start,
         'lesson_end': lesson_end,
         'uniq': uniq,
-        'usernames': sorted(usernames),
+        'usernames': sort_ukrainian(usernames),
     })
