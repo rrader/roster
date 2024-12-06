@@ -132,7 +132,9 @@ def index(request):
                     })
 
             if the_user.username == 'admin':
-                return redirect(f'/key_required/{the_user.id}/')
+                response = redirect(f'/key_required/{the_user.id}/')
+                response['Location'] += f'?wantsurl={wantsurl}'
+                return response
 
             # create WorkplaceUserPlacement record
             if workplace_id:
@@ -207,6 +209,7 @@ def moodle_auth(name, surname, username, email, wantsurl):
 
 def key_required(request, uid):
     activate('uk')
+    wantsurl = request.GET.get('wantsurl', '')
     the_user = User.objects.get(id=uid)
 
     if request.method == "POST":
@@ -216,9 +219,20 @@ def key_required(request, uid):
                 url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email, '')
                 return redirect(url)
             else:
-                return render(request, 'key.html', {'error': True, 'errortext': 'Невідомий користувач', 'form': form, "the_user": the_user})
+                return render(request, 'key.html', {
+                    'error': True,
+                    'errortext': 'Невідомий користувач',
+                    'form': form,
+                    "the_user": the_user,
+                    'wantsurl': wantsurl,
+                })
         else:
-            return render(request, 'key.html', {'error': form.errors.as_data(), 'form': form, "the_user": the_user})
+            return render(request, 'key.html', {
+                'wantsurl': wantsurl,
+                'error': form.errors.as_data(),
+                'form': form,
+                "the_user": the_user,
+            })
 
     else:
         form = KeyForm()
