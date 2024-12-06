@@ -216,7 +216,7 @@ def key_required(request, uid):
         form = KeyForm(request.POST)
         if form.is_valid():
             if the_user.username == 'admin' and form.cleaned_data['key'] == os.environ['MOODLE_ADMIN_PASSWORD']:
-                url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email, '')
+                url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email, wantsurl)
                 return redirect(url)
             else:
                 return render(request, 'key.html', {
@@ -237,7 +237,7 @@ def key_required(request, uid):
     else:
         form = KeyForm()
 
-    return render(request, 'key.html', {"form": form, "the_user": the_user})
+    return render(request, 'key.html', {"form": form, "the_user": the_user, 'wantsurl': wantsurl})
 
 
 def classroom_workplace_login(request, workplace_id):
