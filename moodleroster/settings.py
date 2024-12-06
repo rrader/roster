@@ -30,7 +30,8 @@ BASE_DOMAIN = 'rmn.pp.ua'
 CLASSROOM_URL = 'https://class.rmn.pp.ua/lesson'
 ALLOWED_HOSTS = [f'students.{BASE_DOMAIN}', '127.0.0.1', 'localhost']
 CSRF_TRUSTED_ORIGINS = [f'https://students.{BASE_DOMAIN}', f'https://class.{BASE_DOMAIN}']
-
+CSRF_COOKIE_DOMAIN = f'.{BASE_DOMAIN}'
+CSRF_COOKIE_NAME = 'csrftoken_2'
 
 INSTALLED_APPS = [
     'django.contrib.admin',
