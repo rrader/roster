@@ -154,11 +154,14 @@ def index(request):
     else:
         form = EnterForm()
 
-    return render(request, 'index.html', {
+    response = render(request, 'index.html', {
         "form": form,
         'wantsurl': wantsurl,
         'workplace_id': workplace_id,
     })
+    # clear the cookie
+    response.set_cookie('MoodleSession', '', domain=f'.{settings.BASE_DOMAIN}')
+    return response
 
 
 def search_users_ajax(request):
