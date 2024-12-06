@@ -32,7 +32,7 @@
 {% endif %}
 
 <div class="mb-3">
-  <form action="{% url 'key_required' the_user.id %}" method="post" id="authform" target="_blank">{% csrf_token %}
+  <form action="{% url 'key_required' the_user.id %}?wantsurl={{ wantsurl }}" method="post" id="authform" target="_blank">{% csrf_token %}
     <label for="key" class="form-label">Введіть ключ</label><br>
     <input type="password" id="key" name="key" value="{{form.key.value|default_if_none:""}}" class="form-control typeahead" placeholder="ключ" {% if disable %}readonly{% endif %}><br>
 
