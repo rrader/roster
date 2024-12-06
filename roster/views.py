@@ -314,3 +314,9 @@ def classroom(request):
         'uniq': uniq,
         'usernames': sort_ukrainian(usernames),
     })
+
+
+def logged_in(request):
+    activate('uk')
+
+    return render(request, 'logged_in.html')

@@ -32,7 +32,7 @@
 {% endif %}
 
 <div class="mb-3">
-  <form action="/?wantsurl={{ wantsurl }}" method="post" id="authform">{% csrf_token %}
+  <form action="/?wantsurl={{ wantsurl }}" method="post" id="authform" target="_blank">{% csrf_token %}
     <label for="surname" class="form-label">Прізвище</label><br>
     <input type="text" id="surname" name="surname" value="{{form.surname.value|default_if_none:""}}" class="form-control typeahead" placeholder="Шевченко" {% if disable %}readonly{% endif %}><br>
     <label for="name" class="form-label">Ім'я</label><br>
@@ -79,11 +79,17 @@
       <input type="hidden" id="uid" name="uid" value="0"><br>
     {% endif %}
 
-    <button type="submit" value="Submit" class="btn btn-primary mb-3">Увійти</button>
+    <button type="submit" value="Submit" class="btn btn-primary mb-3" onclick="changeLocation()">Увійти</button>
   </form>
 </div>
 
 <script>
+
+  function changeLocation (){
+    setTimeout(function(){
+      window.location = "{% url 'logged_in' %}";
+    },200);
+  }
 
   $(function() {
     var surnames = new Bloodhound({

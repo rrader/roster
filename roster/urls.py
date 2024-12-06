@@ -10,4 +10,5 @@ urlpatterns = [
     path("search_users_ajax/", views.search_users_ajax, name='search_users_ajax'),
     path("classroom_workplace_login/<str:workplace_id>/", views.classroom_workplace_login, name='classroom_workplace_login'),
     path("classroom", views.classroom, name='classroom'),
+    path("logged_in/", views.logged_in, name='logged_in'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
