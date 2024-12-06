@@ -29,7 +29,7 @@ DEBUG = True
 BASE_DOMAIN = 'rmn.pp.ua'
 CLASSROOM_URL = 'https://class.rmn.pp.ua/lesson'
 ALLOWED_HOSTS = [f'students.{BASE_DOMAIN}', '127.0.0.1', 'localhost']
-CSRF_TRUSTED_ORIGINS = [f'https://students.{BASE_DOMAIN}']
+CSRF_TRUSTED_ORIGINS = [f'https://students.{BASE_DOMAIN}', f'https://class.{BASE_DOMAIN}']
 
 
 INSTALLED_APPS = [
