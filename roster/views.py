@@ -63,6 +63,9 @@ def index(request):
     activate('uk')
     wantsurl = request.GET.get('wantsurl', '')
     workplace_id = request.COOKIES.get('WorkplaceId', '')
+    access_key = request.COOKIES.get('AccessKey', '')
+    if access_key != settings.ACCESS_KEY:
+        access_key = ''
 
     if request.method == "POST":
         form = EnterForm(request.POST)
@@ -78,6 +81,7 @@ def index(request):
                     'disable': True,
                     'wantsurl': wantsurl,
                     'workplace_id': workplace_id,
+                    'access_key': access_key,
                 })
 
             elif form.cleaned_data['uid'] == 0 and form.cleaned_data['username'] == "__CONFIRM__":
@@ -90,6 +94,7 @@ def index(request):
                         'disable': True,
                         'wantsurl': wantsurl,
                         'workplace_id': workplace_id,
+                        'access_key': access_key,
                     })
 
                 if User.objects.filter(email=form.cleaned_data['email']).exists():
@@ -103,6 +108,7 @@ def index(request):
                         'disable': True,
                         'wantsurl': wantsurl,
                         'workplace_id': workplace_id,
+                        'access_key': access_key,
                     })
 
                 # user should be created
@@ -129,26 +135,30 @@ def index(request):
                         'disable': True,
                         'wantsurl': wantsurl,
                         'workplace_id': workplace_id,
+                        'access_key': access_key,
                     })
 
             if the_user.username == 'admin':
                 response = redirect(f'/key_required/{the_user.id}/')
                 response['Location'] += f'?wantsurl={wantsurl}'
-                return response
+            else:
+                # create WorkplaceUserPlacement record
+                if workplace_id:
+                    placement = WorkplaceUserPlacement.objects.create(user=the_user, workplace_id=workplace_id)
+                    placement.save()
 
-            # create WorkplaceUserPlacement record
-            if workplace_id:
-                placement = WorkplaceUserPlacement.objects.create(user=the_user, workplace_id=workplace_id)
-                placement.save()
+                url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email, wantsurl)
+                response = redirect(url)
 
-            url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email, wantsurl)
-            return redirect(url)
+            response.set_cookie('AccessKey', form.cleaned_data['access_key'], samesite='None', secure=True)
+            return response
         else:
             return render(request, 'index.html', {
                 'error': form.errors.as_data(),
                 'form': form,
                 'wantsurl': wantsurl,
                 'workplace_id': workplace_id,
+                'access_key': access_key,
             })
 
     else:
@@ -158,6 +168,7 @@ def index(request):
         "form": form,
         'wantsurl': wantsurl,
         'workplace_id': workplace_id,
+        'access_key': access_key,
     })
     # clear the cookie
     response.set_cookie('MoodleSession', '', domain=f'.{settings.BASE_DOMAIN}')
@@ -245,9 +256,11 @@ def key_required(request, uid):
 
 def classroom_workplace_login(request, workplace_id):
     activate('uk')
+    access_key = request.GET.get('access_key', '')
 
     response = redirect(settings.CLASSROOM_URL)
     response.set_cookie('WorkplaceId', workplace_id, samesite='None', secure=True)
+    response.set_cookie('AccessKey', access_key, samesite='None', secure=True)
     return response
 
 

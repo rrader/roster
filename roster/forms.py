@@ -1,8 +1,5 @@
-from importlib.metadata import requires
-
 from django import forms
-from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
+from django.conf import settings
 
 
 alphabet = 'абвгґдеєжзиіїйклмнопрстуфхцчшщьюя'
@@ -15,12 +12,7 @@ class EnterForm(forms.Form):
     uid = forms.IntegerField(label="UserId", required=False)
     email = forms.EmailField(label="Email", required=False)
     workplace_id = forms.CharField(label="WorkplaceId", required=False)
-
-    # def clean_email(self):
-        # email = self.cleaned_data['email']
-        # if User.objects.filter(email=email).exists():
-        #     raise ValidationError("Email already exists")
-        # return email
+    access_key = forms.CharField(label="Ключ доступу", required=True)
 
     def clean_surname(self):
         surname = self.cleaned_data['surname']
@@ -63,6 +55,12 @@ class EnterForm(forms.Form):
             raise forms.ValidationError("Ім'я повинно бути українською без інших символів")
 
         return name
+
+    def clean_access_key(self):
+        key = self.cleaned_data['access_key']
+        if key != settings.ACCESS_KEY:
+            raise forms.ValidationError("Помилковий ключ доступу")
+        return key
 
 
 class KeyForm(forms.Form):

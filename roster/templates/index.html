@@ -39,6 +39,13 @@
     <input type="text" id="name" name="name" value="{{form.name.value|default_if_none:""}}" class="form-control" placeholder="Тарас" {% if disable %}readonly{% endif %}><br>
     <input type="hidden" id="workplace_id" name="workplace_id" value="{{workplace_id}}">
 
+    {% if access_key %}
+      <input type="hidden" id="access_key" name="access_key" value="{{access_key}}">
+    {% else %}
+        <label for="access_key" class="form-label">Ключ доступу</label><br>
+        <input type="text" id="access_key" name="access_key" value="{{form.access_key.value|default_if_none:""}}" class="form-control" placeholder="123456" {% if disable %}readonly{% endif %}><br>
+    {% endif %}
+
     {% if proposed_users %}
 
       Можливо, ви помилились? Оберіть своє ім'я зі списку, якщо воно є тут:

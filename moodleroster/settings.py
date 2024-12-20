@@ -54,6 +54,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'roster.middleware.CSPMiddleware',
+    'roster.middleware.AccessKeyMiddleware',
 ]
 
 ROOT_URLCONF = 'moodleroster.urls'
@@ -179,3 +180,5 @@ LESSONS_SCHEDULE = {
         'end': time(23, 59),
     },
 }
+
+ACCESS_KEY = "ARU3I9VD"
