@@ -175,6 +175,14 @@ LESSONS_SCHEDULE = {
         'end': time(16, 30),
     },
     9: {
+        'start': time(16, 40),
+        'end': time(17, 30),
+    },
+    10: {
+        'start': time(17, 40),
+        'end': time(18, 10),
+    },
+    11: {
         'start': time(23, 59),
         'end': time(23, 59),
     },
