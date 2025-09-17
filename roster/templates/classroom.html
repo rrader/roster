@@ -13,7 +13,7 @@
 
         <label for="lessonFilter" class="form-label">Урок:</label>
         <select id="lessonFilter" class="form-select" name="lesson">
-          {% for s in "12345678"|make_list %}
+          {% for s in "123456789"|make_list %}
           <option value="{{ s }}" {% if s == lesson %}selected{% endif %}>{{ s }} урок</option>
           {% endfor %}
         </select>
