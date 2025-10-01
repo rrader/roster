@@ -9,6 +9,7 @@ import requests
 from dotenv import load_dotenv
 
 from django.contrib.auth.models import User
+from django.db import models
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.utils.translation import activate
@@ -187,7 +188,11 @@ def search_users_ajax(request):
 
 
 def user_json(user):
-    return {'surname': user.last_name, 'name': user.first_name}
+    return {
+        'surname': user.last_name, 
+        'name': user.first_name,
+        'display': f"{user.last_name} {user.first_name}"
+    }
 
 
 def moodle_auth(name, surname, username, email, wantsurl):

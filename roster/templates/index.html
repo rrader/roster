@@ -115,12 +115,13 @@
               minLength: 1,
               highlight: true},
             {name: 'names',
-              display: 'surname',
+              display: 'display',
               source: surnames.ttAdapter(),
             });
 
     $('.typeahead').bind('typeahead:select', function(ev, suggestion) {
       $('#name').val(suggestion.name);
+      $('#surname').val(suggestion.surname);
     });
   });
 
