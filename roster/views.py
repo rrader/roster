@@ -66,7 +66,7 @@ def index(request):
     theme = request.GET.get('theme', '')
     workplace_id = request.COOKIES.get('WorkplaceId', '')
     access_key_cookie = request.COOKIES.get('AccessKey', '')
-    access_key = request.GET.get('access_key', access_key)
+    access_key = request.GET.get('access_key', access_key_cookie)
 
     if theme == 'cybermonth':
         template = 'cybermonth/index.html'
