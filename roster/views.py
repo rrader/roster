@@ -63,8 +63,15 @@ def try_exact_match(form):
 def index(request):
     activate('uk')
     wantsurl = request.GET.get('wantsurl', '')
+    theme = request.GET.get('theme', '')
     workplace_id = request.COOKIES.get('WorkplaceId', '')
     access_key = request.COOKIES.get('AccessKey', '')
+
+    if theme == 'cybermonth':
+        template = 'cybermonth/index.html'
+    else:
+        template = 'index.html'
+
     if access_key != settings.ACCESS_KEY:
         access_key = ''
 
@@ -76,7 +83,7 @@ def index(request):
 
             elif form.cleaned_data['username'] == "__NEW__":
 
-                return render(request, 'index.html', {
+                return render(request, template, {
                     'form': form,
                     'ask_new_account': True,
                     'disable': True,
@@ -87,7 +94,7 @@ def index(request):
 
             elif form.cleaned_data['uid'] == 0 and form.cleaned_data['username'] == "__CONFIRM__":
                 if not form.cleaned_data['email']:
-                    return render(request, 'index.html', {
+                    return render(request, template, {
                         'error': True,
                         'errortext': 'Потрібно вказати пошту',
                         'ask_new_account': True,
@@ -100,7 +107,7 @@ def index(request):
 
                 if User.objects.filter(email=form.cleaned_data['email']).exists():
                     propose = User.objects.filter(email=form.cleaned_data['email'])
-                    return render(request, 'index.html', {
+                    return render(request, template, {
                         'error': True,
                         'errortext': 'Користувач з такою поштою вже існує',
                         'ask_new_account': True,
@@ -129,7 +136,7 @@ def index(request):
                 if not the_user:
                     propose = try_fuzzy_match(form)
 
-                    return render(request, 'index.html', {
+                    return render(request, template, {
                         'form': form,
                         'ask_new_account': True,
                         'proposed_users': propose,
@@ -154,7 +161,7 @@ def index(request):
             response.set_cookie('AccessKey', form.cleaned_data['access_key'], samesite='None', secure=True)
             return response
         else:
-            return render(request, 'index.html', {
+            return render(request, template, {
                 'error': form.errors.as_data(),
                 'form': form,
                 'wantsurl': wantsurl,
@@ -165,7 +172,7 @@ def index(request):
     else:
         form = EnterForm()
 
-    response = render(request, 'index.html', {
+    response = render(request, template, {
         "form": form,
         'wantsurl': wantsurl,
         'workplace_id': workplace_id,

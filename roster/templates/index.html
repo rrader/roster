@@ -1,97 +1,101 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Вітаю!</h1>
+<div class="daily-container" style="background: var(--bg-gradient);">
+  <h1 class="daily-title">Вітаю!</h1>
+  <p class="daily-subtitle">Будь ласка, заповніть форму щоб увійти на урок</p>
 
-<p>Будь ласка, заповніть форму щоб увійти на урок</p>
+  {% if error %}
+  <div class="alert daily-alert" role="alert">
+    <strong>⚠️ Помилка!</strong>
+    <ul class="errorlist">
+      {% if errortext %}
+      <li>{{ errortext }}</li>
+      {% endif %}
 
-{% if error %}
-<div class="alert alert-danger" role="alert">
-  <ul class="errorlist">
-    {% if errortext %}
-    <li>{{ errortext }}</li>
-    {% endif %}
+      {% if form.non_field_errors %}
+      <li>{{ form.non_field_errors }}</li>
+      {% endif %}
+      {% for field in form %}
+      {% if field.errors %}
+      <li>
+        {{ field.label }}
+        <ul class="errorlist">
+          {% for error in field.errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 
-    {% if form.non_field_errors %}
-    <li>{{ form.non_field_errors }}</li>
-    {% endif %}
-    {% for field in form %}
-    {% if field.errors %}
-    <li>
-      {{ field.label }}
-      <ul class="errorlist">
-        {% for error in field.errors %}
-        <li>{{ error }}</li>
+  <div class="mb-3">
+    <form action="/?wantsurl={{ wantsurl }}" method="post" id="authform" target="_blank">{% csrf_token %}
+      <label for="surname" class="form-label daily-form-label">👤 Прізвище</label><br>
+      <input type="text" id="surname" name="surname" value="{{form.surname.value|default_if_none:""}}" class="form-control typeahead daily-input" placeholder="Шевченко" {% if disable %}readonly{% endif %}><br>
+      <label for="name" class="form-label daily-form-label">✨ Ім'я</label><br>
+      <input type="text" id="name" name="name" value="{{form.name.value|default_if_none:""}}" class="form-control daily-input" placeholder="Тарас" {% if disable %}readonly{% endif %}><br>
+      <input type="hidden" id="workplace_id" name="workplace_id" value="{{workplace_id}}">
+
+      {% if access_key %}
+        <input type="hidden" id="access_key" name="access_key" value="{{access_key}}">
+      {% else %}
+          <label for="access_key" class="form-label daily-form-label">🔑 Ключ доступу</label><br>
+          <input type="text" id="access_key" name="access_key" value="{{form.access_key.value|default_if_none:""}}" class="form-control daily-input" placeholder="******" {% if disable %}readonly{% endif %}><br>
+      {% endif %}
+
+      {% if proposed_users %}
+
+        <div class="daily-check-label" style="margin-top: 20px; margin-bottom: 15px;">
+          <strong>🔍 Можливо, ви помилились? Оберіть своє ім'я зі списку, якщо воно є тут:</strong>
+        </div>
+
+        {% for puser in proposed_users %}
+          <div class="form-check daily-radio">
+            <input class="form-check-input" type="radio" name="uid" id="proposedUser{{ puser.id }}" value="{{ puser.id }}">
+            <label class="form-check-label daily-check-label" for="proposedUser{{ puser.id }}">
+              {{ puser.last_name }} {{ puser.first_name }}
+            </label>
+          </div>
         {% endfor %}
-      </ul>
-    </li>
-    {% endif %}
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
 
-<div class="mb-3">
-  <form action="/?wantsurl={{ wantsurl }}" method="post" id="authform" target="_blank">{% csrf_token %}
-    <label for="surname" class="form-label">Прізвище</label><br>
-    <input type="text" id="surname" name="surname" value="{{form.surname.value|default_if_none:""}}" class="form-control typeahead" placeholder="Шевченко" {% if disable %}readonly{% endif %}><br>
-    <label for="name" class="form-label">Ім'я</label><br>
-    <input type="text" id="name" name="name" value="{{form.name.value|default_if_none:""}}" class="form-control" placeholder="Тарас" {% if disable %}readonly{% endif %}><br>
-    <input type="hidden" id="workplace_id" name="workplace_id" value="{{workplace_id}}">
-
-    {% if access_key %}
-      <input type="hidden" id="access_key" name="access_key" value="{{access_key}}">
-    {% else %}
-        <label for="access_key" class="form-label">Ключ доступу</label><br>
-        <input type="text" id="access_key" name="access_key" value="{{form.access_key.value|default_if_none:""}}" class="form-control" placeholder="123456" {% if disable %}readonly{% endif %}><br>
-    {% endif %}
-
-    {% if proposed_users %}
-
-      Можливо, ви помилились? Оберіть своє ім'я зі списку, якщо воно є тут:
-
-      {% for puser in proposed_users %}
-        <div class="form-check">
-          <input class="form-check-input" type="radio" name="uid" id="proposedUser{{ puser.id }}" value="{{ puser.id }}">
-          <label class="form-check-label" for="proposedUser{{ puser.id }}">
-            {{ puser.last_name }} {{ puser.first_name }}
+        <div class="form-check daily-radio">
+          <input class="form-check-input" type="radio" name="uid" id="proposedUserNEW" value="0">
+          <label class="form-check-label daily-check-label" for="proposedUserNEW">
+            Ні, не знайшов себе в списку. Створити новий акаунт.
           </label>
         </div>
-      {% endfor %}
 
-      <div class="form-check">
+        <input type="hidden" id="username" name="username" value="__NEW__"><br>
 
-        <input class="form-check-input" type="radio" name="uid" id="proposedUserNEW" value="0">
-        <label class="form-check-label" for="proposedUserNEW">
-          Ні, не знайшов себе в списку. Створити новий акаунт.
-        </label>
-      </div>
+      {% elif ask_new_account %}
 
-      <input type="hidden" id="username" name="username" value="__NEW__"><br>
+        <div class="daily-check-label" style="margin-top: 20px; margin-bottom: 15px;">
+          <strong>✅ Створити новий акаунт з цими даними?</strong>
+        </div>
 
-    {% elif ask_new_account %}
+        <label for="email" class="form-label daily-form-label">📧 Електронна пошта</label><br>
+        <input type="email" id="email" name="email" value="{{form.email.value|default_if_none:""}}" class="form-control daily-input" placeholder="shevchenko@gmail.com"><br>
 
-      Створити новий акаунт з цими даними?
+        <input type="hidden" id="uid" name="uid" value="0"><br>
+        <input type="hidden" id="username" name="username" value="__CONFIRM__"><br>
 
-      <label for="email" class="form-label">Електронна пошта</label><br>
-      <input type="email" id="email" name="email" value="{{form.email.value|default_if_none:""}}" class="form-control" placeholder="shevchenko@gmail.com"><br>
+        <a href="{% url 'index' %}" class="btn btn-secondary mb-3" style="background: linear-gradient(45deg, #666, #999) !important; color: #fff !important;">⬅️ Ні, повернутись назад</a>
 
-      <input type="hidden" id="uid" name="uid" value="0"><br>
-      <input type="hidden" id="username" name="username" value="__CONFIRM__"><br>
+      {% else %}
+        <input type="hidden" id="username" name="username" value="{{form.username.value|default_if_none:""}}"><br>
+        <input type="hidden" id="uid" name="uid" value="0"><br>
+      {% endif %}
 
-      <a href="{% url 'index' %}" class="btn btn-secondary mb-3">Ні, повернутись назад</a>
-
-    {% else %}
-      <input type="hidden" id="username" name="username" value="{{form.username.value|default_if_none:""}}"><br>
-      <input type="hidden" id="uid" name="uid" value="0"><br>
-    {% endif %}
-
-    <button type="submit" value="Submit" class="btn btn-success mb-3" onclick="changeLocation()">Увійти</button>
-  </form>
+      <button type="submit" value="Submit" class="btn daily-btn mb-3" onclick="changeLocation()">🚀 Увійти</button>
+    </form>
+  </div>
 </div>
 
 <script>
-
   function changeLocation (){
     setTimeout(function(){
       window.location = "{% url 'logged_in' %}";
