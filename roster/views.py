@@ -181,6 +181,8 @@ def index(request):
     })
     # clear the cookie
     response.set_cookie('MoodleSession', '', domain=f'.{settings.BASE_DOMAIN}')
+    # set the access key cookie
+    response.set_cookie('AccessKey', access_key, samesite='None', secure=True)
     return response
 
 
