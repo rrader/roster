@@ -13,6 +13,8 @@ urlpatterns = [
     path("logged_in/", views.logged_in, name='logged_in'),
     
     # Student Groups URLs
+    path("groups/login/", views.groups_login, name='groups_login'),
+    path("groups/logout/", views.groups_logout, name='groups_logout'),
     path("groups/", views.groups_list, name='groups_list'),
     path("groups/create/", views.group_create, name='group_create'),
     path("groups/<int:group_id>/", views.group_detail, name='group_detail'),

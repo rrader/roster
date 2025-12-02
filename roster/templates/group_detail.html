@@ -1,16 +1,21 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    .daily-container::before {
+        display: none !important;
+    }
+</style>
 <div class="daily-container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="daily-title mb-0">{{ group.name }}</h1>
         <div>
-            <a href="{% url 'group_edit' group.id %}?access_key={{ access_key }}" class="btn btn-sm btn-outline-primary"
+            <a href="{% url 'group_edit' group.id %}" class="btn btn-sm btn-outline-primary"
                 style="color: var(--primary-color); border-color: var(--primary-color);">
                 Редагувати
             </a>
-            <form method="post" action="{% url 'group_delete' group.id %}?access_key={{ access_key }}"
-                style="display: inline;" onsubmit="return confirm('Ви впевнені, що хочете видалити цю групу?');">
+            <form method="post" action="{% url 'group_delete' group.id %}" style="display: inline;"
+                onsubmit="return confirm('Ви впевнені, що хочете видалити цю групу?');">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-outline-danger"
                     style="color: #f44336; border-color: #f44336;">
@@ -39,12 +44,14 @@
 
         <div class="row">
             <div class="col-md-5 mb-3">
-                <label for="{{ add_form.surname.id_for_label }}" class="daily-form-label">{{ add_form.surname.label
-                    }}</label>
+                <label for="{{ add_form.surname.id_for_label }}" class="daily-form-label">
+                    {{ add_form.surname.label }}</label>
                 {{ add_form.surname }}
             </div>
             <div class="col-md-5 mb-3">
-                <label for="{{ add_form.name.id_for_label }}" class="daily-form-label">{{ add_form.name.label }}</label>
+                <label for="{{ add_form.name.id_for_label }}" class="daily-form-label">
+                    {{ add_form.name.label }}
+                </label>
                 {{ add_form.name }}
             </div>
             <div class="col-md-2 mb-3">
@@ -116,7 +123,7 @@
                     <td>{{ student.first_name }}</td>
                     <td>{{ student.email|default:"-" }}</td>
                     <td>
-                        <a href="{% url 'group_remove_student' group.id student.id %}?access_key={{ access_key }}"
+                        <a href="{% url 'group_remove_student' group.id student.id %}"
                             class="btn btn-sm btn-outline-danger" style="color: #f44336; border-color: #f44336;"
                             onclick="return confirm('Видалити {{ student.last_name }} {{ student.first_name }} з групи?');">
                             Видалити
@@ -134,7 +141,7 @@
     {% endif %}
 
     <div class="mt-4">
-        <a href="{% url 'groups_list' %}?access_key={{ access_key }}" class="btn btn-outline-secondary"
+        <a href="{% url 'groups_list' %}" class="btn btn-outline-secondary"
             style="color: var(--text-color); border-color: var(--text-color);">
             ← Назад до списку груп
         </a>
