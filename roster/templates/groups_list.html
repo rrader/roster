@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="daily-container">
+    <h1 class="daily-title">Групи учнів</h1>
+    
+    <div class="mb-4 text-center">
+        <a href="{% url 'group_create' %}?access_key={{ access_key }}" class="daily-btn btn">
+            + Створити нову групу
+        </a>
+    </div>
+
+    {% if groups %}
+        <div class="row">
+            {% for group in groups %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">{{ group.name }}</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if group.description %}
+                            <p class="card-text">{{ group.description|truncatewords:20 }}</p>
+                        {% else %}
+                            <p class="card-text text-muted" style="color: var(--placeholder-color) !important;">Без опису</p>
+                        {% endif %}
+                        <p class="card-text">
+                            <strong>Учнів:</strong> {{ group.students_count }}
+                        </p>
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'group_detail' group.id %}?access_key={{ access_key }}" class="btn btn-sm daily-btn">
+                                Переглянути
+                            </a>
+                            <a href="{% url 'group_edit' group.id %}?access_key={{ access_key }}" class="btn btn-sm btn-outline-primary" style="color: var(--primary-color); border-color: var(--primary-color);">
+                                Редагувати
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert daily-alert text-center" role="alert">
+            <p class="mb-0">Груп ще немає. Створіть першу групу!</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

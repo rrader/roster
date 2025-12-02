@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="daily-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="daily-title mb-0">{{ group.name }}</h1>
+        <div>
+            <a href="{% url 'group_edit' group.id %}?access_key={{ access_key }}" class="btn btn-sm btn-outline-primary"
+                style="color: var(--primary-color); border-color: var(--primary-color);">
+                Редагувати
+            </a>
+            <form method="post" action="{% url 'group_delete' group.id %}?access_key={{ access_key }}"
+                style="display: inline;" onsubmit="return confirm('Ви впевнені, що хочете видалити цю групу?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger"
+                    style="color: #f44336; border-color: #f44336;">
+                    Видалити
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if group.description %}
+    <p class="daily-subtitle">{{ group.description }}</p>
+    {% endif %}
+
+    <div class="mb-4">
+        <p><strong>Кількість учнів:</strong> {{ students.count }}</p>
+        <p><strong>Створено:</strong> {{ group.created_at|date:"d.m.Y H:i" }}</p>
+        <p><strong>Оновлено:</strong> {{ group.updated_at|date:"d.m.Y H:i" }}</p>
+    </div>
+
+    <hr style="border-color: var(--primary-color);">
+
+    <h3>Додати учня до групи</h3>
+
+    <form method="post" class="mb-4">
+        {% csrf_token %}
+
+        <div class="row">
+            <div class="col-md-5 mb-3">
+                <label for="{{ add_form.surname.id_for_label }}" class="daily-form-label">{{ add_form.surname.label
+                    }}</label>
+                {{ add_form.surname }}
+            </div>
+            <div class="col-md-5 mb-3">
+                <label for="{{ add_form.name.id_for_label }}" class="daily-form-label">{{ add_form.name.label }}</label>
+                {{ add_form.name }}
+            </div>
+            <div class="col-md-2 mb-3">
+                {{ add_form.user_id }}
+                <label class="daily-form-label" style="opacity: 0;">Пошук</label>
+                <button type="submit" class="daily-btn btn w-100">
+                    Знайти
+                </button>
+            </div>
+        </div>
+
+        {% if add_form.errors %}
+        <div class="alert daily-alert">
+            {{ add_form.errors }}
+        </div>
+        {% endif %}
+    </form>
+
+    {% if proposed_users %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Знайдені учні</h5>
+        </div>
+        <div class="card-body">
+            <div class="list-group">
+                {% for user in proposed_users %}
+                <form method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="surname" value="{{ user.last_name }}">
+                    <input type="hidden" name="name" value="{{ user.first_name }}">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <button type="submit" class="list-group-item list-group-item-action"
+                        style="background-color: var(--menu-bg); border-color: var(--primary-color); color: var(--text-color); cursor: pointer;">
+                        {{ user.last_name }} {{ user.first_name }}
+                        {% if user in students %}
+                        <span class="badge" style="background-color: #4caf50; float: right;">Вже в групі</span>
+                        {% else %}
+                        <span class="badge" style="background-color: var(--primary-color); float: right;">Додати</span>
+                        {% endif %}
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <hr style="border-color: var(--primary-color);">
+
+    <h3>Учні в групі ({{ students.count }})</h3>
+
+    {% if students %}
+    <div class="table-responsive">
+        <table class="table" style="color: var(--text-color);">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--primary-color);">
+                    <th>№</th>
+                    <th>Прізвище</th>
+                    <th>Ім'я</th>
+                    <th>Email</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr style="border-bottom: 1px solid var(--input-bg);">
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ student.last_name }}</td>
+                    <td>{{ student.first_name }}</td>
+                    <td>{{ student.email|default:"-" }}</td>
+                    <td>
+                        <a href="{% url 'group_remove_student' group.id student.id %}?access_key={{ access_key }}"
+                            class="btn btn-sm btn-outline-danger" style="color: #f44336; border-color: #f44336;"
+                            onclick="return confirm('Видалити {{ student.last_name }} {{ student.first_name }} з групи?');">
+                            Видалити
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert daily-alert text-center" role="alert">
+        <p class="mb-0">У групі ще немає учнів. Додайте першого учня!</p>
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{% url 'groups_list' %}?access_key={{ access_key }}" class="btn btn-outline-secondary"
+            style="color: var(--text-color); border-color: var(--text-color);">
+            ← Назад до списку груп
+        </a>
+    </div>
+</div>
+{% endblock %}
