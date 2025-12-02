@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .daily-container::before {
+        display: none !important;
+    }
+</style>
+<div class="daily-container">
+    <h1 class="daily-title">Вхід до управління групами</h1>
+    <p class="daily-subtitle">Введіть адміністраторський пароль для доступу</p>
+
+    {% if error %}
+    <div class="alert daily-alert text-center" role="alert">
+        {{ errortext }}
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label for="password" class="daily-form-label">Пароль</label>
+            <input type="password" name="password" id="password" class="form-control daily-input"
+                placeholder="Введіть пароль адміністратора" required autocomplete="current-password">
+        </div>
+
+        <div class="text-center">
+            <button type="submit" class="daily-btn btn">
+                Увійти
+            </button>
+        </div>
+    </form>
+
+    <div class="mt-4 text-center">
+        <a href="/" style="color: var(--secondary-color);">← Повернутися на головну</a>
+    </div>
+</div>
+{% endblock %}
