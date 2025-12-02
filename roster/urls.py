@@ -11,4 +11,12 @@ urlpatterns = [
     path("classroom_workplace_login/<str:workplace_id>/", views.classroom_workplace_login, name='classroom_workplace_login'),
     path("classroom", views.classroom, name='classroom'),
     path("logged_in/", views.logged_in, name='logged_in'),
+    
+    # Student Groups URLs
+    path("groups/", views.groups_list, name='groups_list'),
+    path("groups/create/", views.group_create, name='group_create'),
+    path("groups/<int:group_id>/", views.group_detail, name='group_detail'),
+    path("groups/<int:group_id>/edit/", views.group_edit, name='group_edit'),
+    path("groups/<int:group_id>/delete/", views.group_delete, name='group_delete'),
+    path("groups/<int:group_id>/remove_student/<int:user_id>/", views.group_remove_student, name='group_remove_student'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

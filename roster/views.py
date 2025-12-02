@@ -20,7 +20,8 @@ from roster.forms import EnterForm, KeyForm
 
 from fuzzy_match import algorithims
 
-from roster.models import WorkplaceUserPlacement
+from roster.models import WorkplaceUserPlacement, StudentGroup
+from roster.group_forms import StudentGroupForm, AddStudentToGroupForm
 
 logger = logging.getLogger(__name__)
 
@@ -365,3 +366,168 @@ def logged_in(request):
     activate('uk')
 
     return render(request, 'logged_in.html')
+
+
+# Student Groups Views
+
+def groups_list(request):
+    """Display list of all student groups"""
+    activate('uk')
+    access_key_cookie = request.COOKIES.get('AccessKey', '')
+    access_key = request.GET.get('access_key', access_key_cookie)
+
+    if access_key != settings.ACCESS_KEY:
+        return redirect('/')
+
+    groups = StudentGroup.objects.all().prefetch_related('students')
+    
+    return render(request, 'groups_list.html', {
+        'groups': groups,
+        'access_key': access_key,
+    })
+
+
+def group_create(request):
+    """Create a new student group"""
+    activate('uk')
+    access_key_cookie = request.COOKIES.get('AccessKey', '')
+    access_key = request.GET.get('access_key', access_key_cookie)
+
+    if access_key != settings.ACCESS_KEY:
+        return redirect('/')
+
+    if request.method == 'POST':
+        form = StudentGroupForm(request.POST)
+        if form.is_valid():
+            group = form.save()
+            return redirect('group_detail', group_id=group.id)
+    else:
+        form = StudentGroupForm()
+
+    return render(request, 'group_form.html', {
+        'form': form,
+        'title': 'Створити нову групу',
+        'access_key': access_key,
+    })
+
+
+def group_detail(request, group_id):
+    """Display group details and list of students"""
+    activate('uk')
+    access_key_cookie = request.COOKIES.get('AccessKey', '')
+    access_key = request.GET.get('access_key', access_key_cookie)
+
+    if access_key != settings.ACCESS_KEY:
+        return redirect('/')
+
+    try:
+        group = StudentGroup.objects.prefetch_related('students').get(id=group_id)
+    except StudentGroup.DoesNotExist:
+        return redirect('groups_list')
+
+    students = group.students.all().order_by('last_name', 'first_name')
+    
+    # Handle adding student
+    add_form = AddStudentToGroupForm()
+    proposed_users = []
+    
+    if request.method == 'POST':
+        add_form = AddStudentToGroupForm(request.POST)
+        if add_form.is_valid():
+            if add_form.cleaned_data.get('user_id'):
+                user = User.objects.get(id=add_form.cleaned_data['user_id'])
+                if user not in group.students.all():
+                    group.students.add(user)
+                return redirect('group_detail', group_id=group.id)
+            else:
+                # Search for users
+                surname = add_form.cleaned_data['surname']
+                name = add_form.cleaned_data.get('name', '')
+                
+                if name:
+                    proposed_users = User.objects.filter(
+                        last_name__icontains=surname,
+                        first_name__icontains=name
+                    )
+                else:
+                    proposed_users = User.objects.filter(last_name__icontains=surname)
+                
+                proposed_users = proposed_users.order_by('last_name', 'first_name')[:10]
+
+    return render(request, 'group_detail.html', {
+        'group': group,
+        'students': students,
+        'add_form': add_form,
+        'proposed_users': proposed_users,
+        'access_key': access_key,
+    })
+
+
+def group_edit(request, group_id):
+    """Edit an existing student group"""
+    activate('uk')
+    access_key_cookie = request.COOKIES.get('AccessKey', '')
+    access_key = request.GET.get('access_key', access_key_cookie)
+
+    if access_key != settings.ACCESS_KEY:
+        return redirect('/')
+
+    try:
+        group = StudentGroup.objects.get(id=group_id)
+    except StudentGroup.DoesNotExist:
+        return redirect('groups_list')
+
+    if request.method == 'POST':
+        form = StudentGroupForm(request.POST, instance=group)
+        if form.is_valid():
+            form.save()
+            return redirect('group_detail', group_id=group.id)
+    else:
+        form = StudentGroupForm(instance=group)
+
+    return render(request, 'group_form.html', {
+        'form': form,
+        'title': f'Редагувати групу: {group.name}',
+        'group': group,
+        'access_key': access_key,
+    })
+
+
+def group_delete(request, group_id):
+    """Delete a student group"""
+    activate('uk')
+    access_key_cookie = request.COOKIES.get('AccessKey', '')
+    access_key = request.GET.get('access_key', access_key_cookie)
+
+    if access_key != settings.ACCESS_KEY:
+        return redirect('/')
+
+    try:
+        group = StudentGroup.objects.get(id=group_id)
+        if request.method == 'POST':
+            group.delete()
+            return redirect('groups_list')
+    except StudentGroup.DoesNotExist:
+        pass
+
+    return redirect('groups_list')
+
+
+def group_remove_student(request, group_id, user_id):
+    """Remove a student from a group"""
+    activate('uk')
+    access_key_cookie = request.COOKIES.get('AccessKey', '')
+    access_key = request.GET.get('access_key', access_key_cookie)
+
+    if access_key != settings.ACCESS_KEY:
+        return redirect('/')
+
+    try:
+        group = StudentGroup.objects.get(id=group_id)
+        user = User.objects.get(id=user_id)
+        group.students.remove(user)
+    except (StudentGroup.DoesNotExist, User.DoesNotExist):
+        pass
+
+    return redirect('group_detail', group_id=group_id)
+
