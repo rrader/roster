@@ -61,6 +61,9 @@ def try_exact_match(form):
     return user
 
 
+from roster.features import check_group_constraints
+
+
 def index(request):
     activate('uk')
     wantsurl = request.GET.get('wantsurl', '')
@@ -154,6 +157,18 @@ def index(request):
             else:
                 # create WorkplaceUserPlacement record
                 if workplace_id:
+                    # Check constraints
+                    allowed, error_msg = check_group_constraints(the_user, workplace_id)
+                    if not allowed:
+                        return render(request, template, {
+                            'error': True,
+                            'errortext': error_msg,
+                            'form': form,
+                            'wantsurl': wantsurl,
+                            'workplace_id': workplace_id,
+                            'access_key': access_key,
+                        })
+
                     placement = WorkplaceUserPlacement.objects.create(user=the_user, workplace_id=workplace_id)
                     placement.save()
 
@@ -494,16 +509,44 @@ def group_edit(request, group_id):
     except StudentGroup.DoesNotExist:
         return redirect('groups_list')
 
+    from roster.group_forms import StudentGroupFeatureForm
+    from roster.models import StudentGroupFeature
+
     if request.method == 'POST':
         form = StudentGroupForm(request.POST, instance=group)
-        if form.is_valid():
+        feature_form = StudentGroupFeatureForm(request.POST)
+        
+        if form.is_valid() and feature_form.is_valid():
             form.save()
+            
+            # Save features
+            # Non-sequential
+            ns_enabled = feature_form.cleaned_data.get('non_sequential', False)
+            min_dist = feature_form.cleaned_data.get('min_distance', 1)
+            
+            feature, created = StudentGroupFeature.objects.get_or_create(
+                group=group,
+                feature_key='non_sequential',
+                defaults={'enabled': ns_enabled}
+            )
+            feature.enabled = ns_enabled
+            feature.parameters = {'min_distance': min_dist}
+            feature.save()
+            
             return redirect('group_detail', group_id=group.id)
     else:
         form = StudentGroupForm(instance=group)
+        # Load initial feature state
+        ns_feature = group.features.filter(feature_key='non_sequential').first()
+        initial_features = {
+            'non_sequential': ns_feature.enabled if ns_feature else False,
+            'min_distance': ns_feature.parameters.get('min_distance', 1) if ns_feature else 1
+        }
+        feature_form = StudentGroupFeatureForm(initial=initial_features)
 
     return render(request, 'group_form.html', {
         'form': form,
+        'feature_form': feature_form,
         'title': f'Редагувати групу: {group.name}',
         'group': group,
     })

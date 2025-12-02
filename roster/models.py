@@ -29,3 +29,23 @@ class StudentGroup(models.Model):
 
     def students_count(self):
         return self.students.count()
+
+
+class StudentGroupFeature(models.Model):
+    """Model for storing features enabled for a student group"""
+    FEATURE_CHOICES = [
+        ('non_sequential', 'Не садити поруч (послідовні номери)'),
+    ]
+
+    group = models.ForeignKey(StudentGroup, on_delete=models.CASCADE, related_name='features')
+    feature_key = models.CharField(max_length=50, choices=FEATURE_CHOICES, verbose_name="Функція")
+    enabled = models.BooleanField(default=True, verbose_name="Увімкнено")
+    parameters = models.JSONField(default=dict, blank=True, verbose_name="Параметри")
+
+    class Meta:
+        verbose_name = "Налаштування групи"
+        verbose_name_plural = "Налаштування груп"
+        unique_together = ['group', 'feature_key']
+
+    def __str__(self):
+        return f"{self.group.name} - {self.get_feature_key_display()}"

@@ -58,3 +58,19 @@ class AddStudentToGroupForm(forms.Form):
                 raise forms.ValidationError("Користувача не знайдено")
         
         return cleaned_data
+
+
+class StudentGroupFeatureForm(forms.Form):
+    """Form for managing group features"""
+    non_sequential = forms.BooleanField(
+        label="Не садити поруч",
+        required=False,
+        help_text="Забороняє учням цієї групи сідати за комп'ютери поруч."
+    )
+    min_distance = forms.IntegerField(
+        label="Мінімальна відстань",
+        initial=1,
+        min_value=1,
+        required=False,
+        help_text="Мінімальна різниця номерів комп'ютерів. 1 = не можна сусідні (1 і 2). 2 = не можна сусідні та через один (1 і 2, 1 і 3)."
+    )

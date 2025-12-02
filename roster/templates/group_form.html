@@ -34,6 +34,37 @@
             {% endif %}
         </div>
 
+        {% if feature_form %}
+        <hr class="daily-hr my-4">
+        <h3 class="daily-subtitle mb-3">Налаштування</h3>
+
+        <div class="mb-3">
+            <div class="form-check">
+                {{ feature_form.non_sequential }}
+                <label class="form-check-label daily-form-label" for="{{ feature_form.non_sequential.id_for_label }}">
+                    {{ feature_form.non_sequential.label }}
+                </label>
+            </div>
+            {% if feature_form.non_sequential.help_text %}
+            <div class="form-text text-muted">
+                {{ feature_form.non_sequential.help_text }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3 ms-4">
+            <label for="{{ feature_form.min_distance.id_for_label }}" class="daily-form-label">
+                {{ feature_form.min_distance.label }}
+            </label>
+            {{ feature_form.min_distance }}
+            {% if feature_form.min_distance.help_text %}
+            <div class="form-text text-muted">
+                {{ feature_form.min_distance.help_text }}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <div class="d-flex justify-content-between">
             <a href="{% url 'groups_list' %}" class="btn btn-outline-secondary"
                 style="color: var(--text-color); border-color: var(--text-color);">
