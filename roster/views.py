@@ -262,12 +262,18 @@ def moodle_auth(name, surname, username, email, wantsurl):
 def key_required(request, uid):
     activate('uk')
     wantsurl = request.GET.get('wantsurl', '')
+    workplace_id = request.COOKIES.get('WorkplaceId', '')
     the_user = User.objects.get(id=uid)
 
     if request.method == "POST":
         form = KeyForm(request.POST)
         if form.is_valid():
             if the_user.username == 'admin' and form.cleaned_data['key'] == os.environ['MOODLE_ADMIN_PASSWORD']:
+                # Create WorkplaceUserPlacement record for admin
+                if workplace_id:
+                    placement = WorkplaceUserPlacement.objects.create(user=the_user, workplace_id=workplace_id)
+                    placement.save()
+                
                 url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email, wantsurl)
                 return redirect(url)
             else:
