@@ -6,3 +6,5 @@ requests
 translitua
 numpy
 django-allauth
+PyJWT
+cryptography
