@@ -216,6 +216,7 @@ ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
 SOCIALACCOUNT_AUTO_SIGNUP = False  # Only existing users can login via Google
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True  # Allow login if email matches
 
 # Google OAuth settings
 SOCIALACCOUNT_PROVIDERS = {

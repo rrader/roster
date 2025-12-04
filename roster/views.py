@@ -685,6 +685,19 @@ def google_login_complete(request):
             'error': True,
             'errortext': f'Ви увійшли як {the_user.email}, але очікувався {expected_email}',
         })
+
+    # Verify Google account email matches Django user email
+    try:
+        social_account = the_user.socialaccount_set.filter(provider='google').first()
+        if social_account:
+            google_email = social_account.extra_data.get('email')
+            if google_email and google_email != the_user.email:
+                return render(request, 'index.html', {
+                    'error': True,
+                    'errortext': f'Email Google акаунту ({google_email}) не співпадає з вашим email ({the_user.email})',
+                })
+    except Exception as e:
+        logger.error(f"Error checking Google email: {e}")
     
     # Check if user has Google login enabled
     try:
