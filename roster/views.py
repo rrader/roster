@@ -320,7 +320,7 @@ def current_lesson(now):
 
 def get_suggested_users_for_workplace(workplace_id, limit=3):
     """
-    Get top N users who most frequently use this workplace during the current time slot.
+    Get top N users who most frequently use this workplace during the current time slot and day of week.
     Returns a list of User objects ordered by frequency of use.
     """
     if not workplace_id:
@@ -328,6 +328,7 @@ def get_suggested_users_for_workplace(workplace_id, limit=3):
     
     now = datetime.datetime.now()
     lesson = current_lesson(now)
+    current_weekday = now.weekday()  # 0 = Monday, 6 = Sunday
     
     if lesson == 0:
         return []
@@ -351,11 +352,14 @@ def get_suggested_users_for_workplace(workplace_id, limit=3):
         created_at__gte=three_months_ago
     ).select_related('user')
     
-    # Filter by time of day (same lesson across different days)
+    # Filter by time of day AND day of week (same lesson on same weekday)
     user_counts = defaultdict(int)
     for placement in placements:
         placement_time = placement.created_at.time()
-        if start_time <= placement_time <= end_time:
+        placement_weekday = placement.created_at.weekday()
+        
+        # Match both time slot and day of week
+        if start_time <= placement_time <= end_time and placement_weekday == current_weekday:
             user_counts[placement.user] += 1
     
     # Sort by frequency and get top N
