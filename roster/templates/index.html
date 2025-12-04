@@ -34,60 +34,86 @@
 
   <div class="mb-3">
     <form action="/?wantsurl={{ wantsurl }}" method="post" id="authform" target="_blank">{% csrf_token %}
+
+      {% if suggested_users and not proposed_users and not ask_new_account %}
+      <div class="daily-check-label" style="margin-bottom: 20px;">
+        <strong>⚡ Швидкий вхід:</strong>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px;">
+        {% for user in suggested_users %}
+        <button type="button" class="btn daily-btn" style="flex: 1; min-width: 150px;"
+          onclick="quickLogin('{{ user.last_name }}', '{{ user.first_name }}')">
+          👤 {{ user.last_name }} {{ user.first_name }}
+        </button>
+        {% endfor %}
+      </div>
+
+      <div class="daily-check-label" style="margin-bottom: 15px;">
+        <strong>Або введіть дані вручну:</strong>
+      </div>
+      {% endif %}
+
       <label for="surname" class="form-label daily-form-label">👤 Прізвище</label><br>
-      <input type="text" id="surname" name="surname" value="{{form.surname.value|default_if_none:""}}" class="form-control typeahead daily-input" placeholder="Шевченко" {% if disable %}readonly{% endif %}><br>
+      <input type="text" id="surname" name="surname" value="{{form.surname.value|default_if_none:""}}"
+        class="form-control typeahead daily-input" placeholder="Шевченко" {% if disable %}readonly{% endif %}><br>
       <label for="name" class="form-label daily-form-label">✨ Ім'я</label><br>
-      <input type="text" id="name" name="name" value="{{form.name.value|default_if_none:""}}" class="form-control daily-input" placeholder="Тарас" {% if disable %}readonly{% endif %}><br>
+      <input type="text" id="name" name="name" value="{{form.name.value|default_if_none:""}}"
+        class="form-control daily-input" placeholder="Тарас" {% if disable %}readonly{% endif %}><br>
       <input type="hidden" id="workplace_id" name="workplace_id" value="{{workplace_id}}">
 
       {% if access_key %}
-        <input type="hidden" id="access_key" name="access_key" value="{{access_key}}">
+      <input type="hidden" id="access_key" name="access_key" value="{{access_key}}">
       {% else %}
-          <label for="access_key" class="form-label daily-form-label">🔑 Ключ доступу</label><br>
-          <input type="text" id="access_key" name="access_key" value="{{form.access_key.value|default_if_none:""}}" class="form-control daily-input" placeholder="******" {% if disable %}readonly{% endif %}><br>
+      <label for="access_key" class="form-label daily-form-label">🔑 Ключ доступу</label><br>
+      <input type="text" id="access_key" name="access_key" value="{{form.access_key.value|default_if_none:""}}"
+        class="form-control daily-input" placeholder="******" {% if disable %}readonly{% endif %}><br>
       {% endif %}
 
       {% if proposed_users %}
 
-        <div class="daily-check-label" style="margin-top: 20px; margin-bottom: 15px;">
-          <strong>🔍 Можливо, ви помилились? Оберіть своє ім'я зі списку, якщо воно є тут:</strong>
-        </div>
+      <div class="daily-check-label" style="margin-top: 20px; margin-bottom: 15px;">
+        <strong>🔍 Можливо, ви помилились? Оберіть своє ім'я зі списку, якщо воно є тут:</strong>
+      </div>
 
-        {% for puser in proposed_users %}
-          <div class="form-check daily-radio">
-            <input class="form-check-input" type="radio" name="uid" id="proposedUser{{ puser.id }}" value="{{ puser.id }}">
-            <label class="form-check-label daily-check-label" for="proposedUser{{ puser.id }}">
-              {{ puser.last_name }} {{ puser.first_name }}
-            </label>
-          </div>
-        {% endfor %}
+      {% for puser in proposed_users %}
+      <div class="form-check daily-radio">
+        <input class="form-check-input" type="radio" name="uid" id="proposedUser{{ puser.id }}" value="{{ puser.id }}">
+        <label class="form-check-label daily-check-label" for="proposedUser{{ puser.id }}">
+          {{ puser.last_name }} {{ puser.first_name }}
+        </label>
+      </div>
+      {% endfor %}
 
-        <div class="form-check daily-radio">
-          <input class="form-check-input" type="radio" name="uid" id="proposedUserNEW" value="0">
-          <label class="form-check-label daily-check-label" for="proposedUserNEW">
-            Ні, не знайшов себе в списку. Створити новий акаунт.
-          </label>
-        </div>
+      <div class="form-check daily-radio">
+        <input class="form-check-input" type="radio" name="uid" id="proposedUserNEW" value="0">
+        <label class="form-check-label daily-check-label" for="proposedUserNEW">
+          Ні, не знайшов себе в списку. Створити новий акаунт.
+        </label>
+      </div>
 
-        <input type="hidden" id="username" name="username" value="__NEW__"><br>
+      <input type="hidden" id="username" name="username" value="__NEW__"><br>
 
       {% elif ask_new_account %}
 
-        <div class="daily-check-label" style="margin-top: 20px; margin-bottom: 15px;">
-          <strong>✅ Створити новий акаунт з цими даними?</strong>
-        </div>
+      <div class="daily-check-label" style="margin-top: 20px; margin-bottom: 15px;">
+        <strong>✅ Створити новий акаунт з цими даними?</strong>
+      </div>
 
-        <label for="email" class="form-label daily-form-label">📧 Електронна пошта</label><br>
-        <input type="email" id="email" name="email" value="{{form.email.value|default_if_none:""}}" class="form-control daily-input" placeholder="shevchenko@gmail.com"><br>
+      <label for="email" class="form-label daily-form-label">📧 Електронна пошта</label><br>
+      <input type="email" id="email" name="email" value="{{form.email.value|default_if_none:""}}"
+        class="form-control daily-input" placeholder="shevchenko@gmail.com"><br>
 
-        <input type="hidden" id="uid" name="uid" value="0"><br>
-        <input type="hidden" id="username" name="username" value="__CONFIRM__"><br>
+      <input type="hidden" id="uid" name="uid" value="0"><br>
+      <input type="hidden" id="username" name="username" value="__CONFIRM__"><br>
 
-        <a href="{% url 'index' %}" class="btn btn-secondary mb-3" style="background: linear-gradient(45deg, #666, #999) !important; color: #fff !important;">⬅️ Ні, повернутись назад</a>
+      <a href="{% url 'index' %}" class="btn btn-secondary mb-3"
+        style="background: linear-gradient(45deg, #666, #999) !important; color: #fff !important;">⬅️ Ні, повернутись
+        назад</a>
 
       {% else %}
-        <input type="hidden" id="username" name="username" value="{{form.username.value|default_if_none:""}}"><br>
-        <input type="hidden" id="uid" name="uid" value="0"><br>
+      <input type="hidden" id="username" name="username" value="{{form.username.value|default_if_none:""}}"><br>
+      <input type="hidden" id="uid" name="uid" value="0"><br>
       {% endif %}
 
       <button type="submit" value="Submit" class="btn daily-btn mb-3" onclick="changeLocation()">🚀 Увійти</button>
@@ -96,39 +122,48 @@
 </div>
 
 <script>
-  function changeLocation (){
-    setTimeout(function(){
-      window.location = "{% url 'logged_in' %}";
-    },200);
+  function quickLogin(surname, name) {
+    $('#surname').val(surname);
+    $('#name').val(name);
+    // Scroll to the submit button
+    $('button[type="submit"]').get(0).scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  $(function() {
+  function changeLocation() {
+    setTimeout(function () {
+      window.location = "{% url 'logged_in' %}";
+    }, 200);
+  }
+
+  $(function () {
     var surnames = new Bloodhound({
       datumTokenizer: Bloodhound.tokenizers.whitespace,
       queryTokenizer: Bloodhound.tokenizers.whitespace,
       remote: {
         url: "{% url 'search_users_ajax' %}",
-        replace: function(url, query) {
+        replace: function (url, query) {
           return url + "?surname=" + query;
         }
       }
     });
 
     $('.typeahead').typeahead({
-              hint: true,
-              minLength: 1,
-              highlight: true},
-            {name: 'names',
-              display: 'surname',
-              source: surnames.ttAdapter(),
-              templates: {
-                suggestion: function(data) {
-                  return '<div>' + data.surname + ' ' + data.name + '</div>';
-                }
-              }
-            });
+      hint: true,
+      minLength: 1,
+      highlight: true
+    },
+      {
+        name: 'names',
+        display: 'surname',
+        source: surnames.ttAdapter(),
+        templates: {
+          suggestion: function (data) {
+            return '<div>' + data.surname + ' ' + data.name + '</div>';
+          }
+        }
+      });
 
-    $('.typeahead').bind('typeahead:select', function(ev, suggestion) {
+    $('.typeahead').bind('typeahead:select', function (ev, suggestion) {
       $('#name').val(suggestion.name);
     });
   });

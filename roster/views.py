@@ -189,12 +189,19 @@ def index(request):
     else:
         form = EnterForm()
 
+    # Get suggested users for fast login if workplace_id is present
+    suggested_users = []
+    if workplace_id:
+        suggested_users = get_suggested_users_for_workplace(workplace_id)
+
     response = render(request, template, {
         "form": form,
         'wantsurl': wantsurl,
         'workplace_id': workplace_id,
         'access_key': access_key,
+        'suggested_users': suggested_users,
     })
+
     # clear the cookie
     response.set_cookie('MoodleSession', '', domain=f'.{settings.BASE_DOMAIN}')
     # set the access key cookie
@@ -303,6 +310,49 @@ def current_lesson(now):
             last = lesson
 
     return last
+
+
+def get_suggested_users_for_workplace(workplace_id, limit=3):
+    """
+    Get top N users who most frequently use this workplace during the current time slot.
+    Returns a list of User objects ordered by frequency of use.
+    """
+    if not workplace_id:
+        return []
+    
+    now = datetime.datetime.now()
+    lesson = current_lesson(now)
+    
+    if lesson == 0:
+        return []
+    
+    # Get the time range for the current lesson
+    lesson_data = settings.LESSONS_SCHEDULE.get(lesson)
+    if not lesson_data:
+        return []
+    
+    # Query placements for this workplace during similar time slots across all dates
+    # We'll look at a broader time window to get historical data
+    start_time = lesson_data['start']
+    end_time = lesson_data['end']
+    
+    # Get all placements for this workplace
+    placements = WorkplaceUserPlacement.objects.filter(
+        workplace_id=workplace_id
+    ).select_related('user')
+    
+    # Filter by time of day (same lesson across different days)
+    user_counts = defaultdict(int)
+    for placement in placements:
+        placement_time = placement.created_at.time()
+        if start_time <= placement_time <= end_time:
+            user_counts[placement.user] += 1
+    
+    # Sort by frequency and get top N
+    sorted_users = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)
+    top_users = [user for user, count in sorted_users[:limit]]
+    
+    return top_users
 
 
 def sort_ukrainian(usernames):
