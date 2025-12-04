@@ -150,6 +150,16 @@ def index(request):
                         'workplace_id': workplace_id,
                         'access_key': access_key,
                     })
+                
+                # Check if user has Google login enabled
+                try:
+                    if the_user.profile.use_google_login:
+                        # Redirect to Google OAuth
+                        google_url = f'/accounts/google/login/?process=login&next=/google_login_complete/?workplace_id={workplace_id}&wantsurl={wantsurl}&email={the_user.email}'
+                        return redirect(google_url)
+                except:
+                    # No profile, continue with normal flow
+                    pass
 
             if the_user.username == 'admin':
                 response = redirect(f'/key_required/{the_user.id}/')
@@ -350,7 +360,7 @@ def get_suggested_users_for_workplace(workplace_id, limit=3):
     placements = WorkplaceUserPlacement.objects.filter(
         workplace_id=workplace_id,
         created_at__gte=three_months_ago
-    ).select_related('user')
+    ).select_related('user').prefetch_related('user__profile')
     
     # Filter by time of day AND day of week (same lesson on same weekday)
     user_counts = defaultdict(int)
@@ -651,3 +661,50 @@ def group_remove_student(request, group_id, user_id):
     return redirect('group_detail', group_id=group_id)
 
 
+def google_login_complete(request):
+    """Handle completion of Google OAuth login and redirect to Moodle"""
+    activate('uk')
+    
+    # Check if user is authenticated via Google
+    if not request.user.is_authenticated:
+        return render(request, 'index.html', {
+            'error': True,
+            'errortext': 'Помилка автентифікації через Google',
+        })
+    
+    the_user = request.user
+    
+    # Get parameters from URL
+    workplace_id = request.GET.get('workplace_id', '')
+    wantsurl = request.GET.get('wantsurl', '')
+    expected_email = request.GET.get('email', '')
+    
+    # Verify this is the expected user
+    if expected_email and the_user.email != expected_email:
+        return render(request, 'index.html', {
+            'error': True,
+            'errortext': f'Ви увійшли як {the_user.email}, але очікувався {expected_email}',
+        })
+    
+    # Check if user has Google login enabled
+    try:
+        if not the_user.profile.use_google_login:
+            return render(request, 'index.html', {
+                'error': True,
+                'errortext': 'Google login не увімкнено для цього користувача',
+            })
+    except:
+        # No profile - this shouldn't happen in normal flow
+        return render(request, 'index.html', {
+            'error': True,
+            'errortext': 'Google login не увімкнено для цього користувача',
+        })
+    
+    # Create WorkplaceUserPlacement record
+    if workplace_id:
+        placement = WorkplaceUserPlacement.objects.create(user=the_user, workplace_id=workplace_id)
+        placement.save()
+    
+    # Redirect to Moodle
+    url = moodle_auth(the_user.first_name, the_user.last_name, the_user.username, the_user.email, wantsurl)
+    return redirect(url)

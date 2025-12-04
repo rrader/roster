@@ -49,3 +49,20 @@ class StudentGroupFeature(models.Model):
 
     def __str__(self):
         return f"{self.group.name} - {self.get_feature_key_display()}"
+
+
+class UserProfile(models.Model):
+    """Extended user profile with additional settings"""
+    user = models.OneToOneField('auth.User', on_delete=models.CASCADE, related_name='profile')
+    use_google_login = models.BooleanField(
+        default=False, 
+        verbose_name="Використовувати Google Login",
+        help_text="Дозволити студенту входити через Google акаунт"
+    )
+    
+    class Meta:
+        verbose_name = "Профіль користувача"
+        verbose_name_plural = "Профілі користувачів"
+    
+    def __str__(self):
+        return f"Profile: {self.user.get_full_name() or self.user.username}"

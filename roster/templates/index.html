@@ -42,10 +42,19 @@
 
       <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px;">
         {% for user in suggested_users %}
+        {% if user.profile.use_google_login %}
+        <a href="/accounts/google/login/?process=login&next=/google_login_complete/?workplace_id={{ workplace_id }}&wantsurl={{ wantsurl }}&email={{ user.email }}"
+          class="btn daily-btn"
+          style="flex: 1; min-width: 150px; background: linear-gradient(45deg, #4285f4, #34a853) !important;">
+          <img src="https://www.google.com/favicon.ico" alt="G" style="width: 16px; height: 16px; margin-right: 5px;">
+          {{ user.last_name }} {{ user.first_name }}
+        </a>
+        {% else %}
         <button type="button" class="btn daily-btn" style="flex: 1; min-width: 150px;"
           onclick="quickLogin('{{ user.last_name }}', '{{ user.first_name }}')">
           👤 {{ user.last_name }} {{ user.first_name }}
         </button>
+        {% endif %}
         {% endfor %}
       </div>
 

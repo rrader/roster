@@ -21,4 +21,7 @@ urlpatterns = [
     path("groups/<int:group_id>/edit/", views.group_edit, name='group_edit'),
     path("groups/<int:group_id>/delete/", views.group_delete, name='group_delete'),
     path("groups/<int:group_id>/remove_student/<int:user_id>/", views.group_remove_student, name='group_remove_student'),
+    
+    # Google OAuth
+    path("google_login_complete/", views.google_login_complete, name='google_login_complete'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
