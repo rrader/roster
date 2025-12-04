@@ -336,9 +336,13 @@ def get_suggested_users_for_workplace(workplace_id, limit=3):
     start_time = lesson_data['start']
     end_time = lesson_data['end']
     
-    # Get all placements for this workplace
+    # Limit to last 3 months for better performance and relevance
+    three_months_ago = now - datetime.timedelta(days=90)
+    
+    # Get all placements for this workplace in the last 3 months
     placements = WorkplaceUserPlacement.objects.filter(
-        workplace_id=workplace_id
+        workplace_id=workplace_id,
+        created_at__gte=three_months_ago
     ).select_related('user')
     
     # Filter by time of day (same lesson across different days)
