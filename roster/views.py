@@ -353,6 +353,13 @@ def get_suggested_users_for_workplace(workplace_id, limit=3):
     start_time = lesson_data['start']
     end_time = lesson_data['end']
     
+    # Get users who are already seated in any workplace during this lesson
+    # We shouldn't suggest users who are already present
+    active_user_ids = set(WorkplaceUserPlacement.objects.filter(
+        created_at__gte=datetime.datetime.combine(now.date(), start_time),
+        created_at__lte=datetime.datetime.combine(now.date(), end_time)
+    ).values_list('user_id', flat=True))
+
     # Limit to last 3 months for better performance and relevance
     three_months_ago = now - datetime.timedelta(days=90)
     
@@ -363,18 +370,20 @@ def get_suggested_users_for_workplace(workplace_id, limit=3):
     ).select_related('user').prefetch_related('user__profile')
     
     # Filter by time of day AND day of week (same lesson on same weekday)
+    # Only count users who have used THIS workplace on the same weekday and time slot
     user_counts = defaultdict(int)
     for placement in placements:
         placement_time = placement.created_at.time()
         placement_weekday = placement.created_at.weekday()
         
-        # Match both time slot and day of week
+        # Only count if it matches both time slot and day of week
         if start_time <= placement_time <= end_time and placement_weekday == current_weekday:
             user_counts[placement.user] += 1
     
-    # Sort by frequency and get top N
+    # Sort by frequency and filter out currently active users, then get top N
+    # Only include users who have actually used this workplace on the same weekday and timeslot (count > 0)
     sorted_users = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)
-    top_users = [user for user, count in sorted_users[:limit]]
+    top_users = [user for user, count in sorted_users if user.id not in active_user_ids and count > 0][:limit]
     
     return top_users
 
