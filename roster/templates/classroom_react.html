@@ -176,14 +176,86 @@
         box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
     }
 
-    .confirm-btn-no {
-        background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-        color: var(--btn-text-color);
-    }
-
     .confirm-btn-no:hover {
         transform: translateY(-1px);
         box-shadow: 0 0 10px var(--shadow-color);
+    }
+
+    /* Monitor View Styles */
+    .monitor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+        padding: 10px;
+        background-color: #1a1a1a;
+        border-radius: 8px;
+    }
+
+    .monitor-card {
+        background-color: #000;
+        border: 1px solid #333;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+        aspect-ratio: 16/9;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+
+    .monitor-card:hover {
+        border-color: var(--primary-color);
+    }
+
+    .monitor-screen {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        /* or cover, depending on preference */
+        background-color: #000;
+    }
+
+    .monitor-screen.stale {
+        filter: grayscale(100%) opacity(0.5);
+    }
+
+    .monitor-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 5px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font-size: 0.8rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .status-dot {
+        height: 8px;
+        width: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+
+    .status-dot.active {
+        background-color: #00ff00;
+        box-shadow: 0 0 5px #00ff00;
+    }
+
+    .status-dot.stale {
+        background-color: #ffff00;
+    }
+
+    .status-dot.missing {
+        background-color: #ff0000;
+    }
+
+    .view-toggle-btn {
+        margin-bottom: 10px;
+        width: 100%;
     }
 </style>
 
@@ -345,6 +417,73 @@
         );
     }
 
+    function MonitorView({ workplaces, onScreenshotClick }) {
+        // Sort workplaces by number to ensure 1-18 order
+        const sortedWorkplaces = [...workplaces].sort((a, b) => a.number - b.number);
+
+        // Fill in missing workplaces if needed (assuming 1-18 range)
+        const allWorkplaces = [];
+        const existingMap = new Map(sortedWorkplaces.map(w => [w.number, w]));
+
+        for (let i = 1; i <= 18; i++) {
+            if (existingMap.has(i)) {
+                allWorkplaces.push(existingMap.get(i));
+            } else {
+                allWorkplaces.push({ number: i, last_screenshot_filename: null });
+            }
+        }
+
+        return (
+            <div className="monitor-container">
+                <h3 className="text-center mb-3">Моніторинг екранів</h3>
+                <div className="monitor-grid">
+                    {allWorkplaces.map(wp => {
+                        const hasScreenshot = !!wp.last_screenshot_filename;
+                        const lastUpdate = wp.last_screenshot_at ? new Date(wp.last_screenshot_at) : null;
+
+                        // Check if stale (> 15 mins)
+                        const isStale = lastUpdate && (new Date() - lastUpdate > 15 * 60 * 1000);
+
+                        let statusClass = 'missing';
+                        if (hasScreenshot) statusClass = isStale ? 'stale' : 'active';
+
+                        const imageUrl = hasScreenshot
+                            ? `/api/classrooms/329/workplaces/${wp.number}/screenshots/${wp.last_screenshot_filename}/`
+                            : null;
+
+                        return (
+                            <div
+                                key={wp.number}
+                                className="monitor-card"
+                                onClick={() => hasScreenshot && onScreenshotClick(wp)}
+                                title={hasScreenshot ? `Updated: ${lastUpdate.toLocaleTimeString('uk-UA')}` : 'No Signal'}
+                            >
+                                {imageUrl ? (
+                                    <img
+                                        src={imageUrl}
+                                        className={`monitor-screen ${isStale ? 'stale' : ''}`}
+                                        alt={`WP ${wp.number}`}
+                                    />
+                                ) : (
+                                    <div className="monitor-screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333' }}>
+                                        NO SIGNAL
+                                    </div>
+                                )}
+                                <div className="monitor-overlay">
+                                    <span>
+                                        <span className={`status-dot ${statusClass}`}></span>
+                                        W-{wp.number}
+                                    </span>
+                                    {lastUpdate && <span>{lastUpdate.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</span>}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
+
     function ClassroomApp() {
         const [classroomData, setClassroomData] = useState(null);
         const [loading, setLoading] = useState(true);
@@ -357,6 +496,7 @@
         const [singles, setSingles] = useState(false);
         const [autoUpdate, setAutoUpdate] = useState(true); // Auto-update lesson
         const [screenshotsEnabled, setScreenshotsEnabled] = useState(true); // Screenshots toggle
+        const [viewMode, setViewMode] = useState('list'); // 'list' or 'monitor'
 
         // Modal state
         const [modalOpen, setModalOpen] = useState(false);
@@ -457,6 +597,18 @@
         const handleCloseScreenshotModal = () => {
             setScreenshotModalOpen(false);
             setScreenshotWorkplace(null);
+        };
+
+        const handleViewModeToggle = () => {
+            setViewMode(prev => prev === 'list' ? 'monitor' : 'list');
+        };
+
+        const getAllWorkplaces = () => {
+            if (!classroomData) return [];
+            return [
+                ...(classroomData.workplaces_1 || []),
+                ...(classroomData.workplaces_2 || [])
+            ];
         };
 
         const formatTime = (isoString) => {
@@ -684,6 +836,15 @@
                             </label>
                         </div>
 
+                        <hr />
+
+                        <button
+                            className={`btn ${viewMode === 'monitor' ? 'btn-primary' : 'btn-outline-primary'} view-toggle-btn`}
+                            onClick={handleViewModeToggle}
+                        >
+                            {viewMode === 'monitor' ? '📋 Список' : '📺 Моніторинг камер'}
+                        </button>
+
                         {lastUpdated && (
                             <div className="mt-3 text-muted small">
                                 Оновлено: {formatLastUpdated()}
@@ -692,19 +853,27 @@
                     </div>
 
                     <div className="col-md-7">
-                        <h1>Кабінет 329</h1>
+                        {viewMode === 'monitor' ? (
+                            <MonitorView
+                                workplaces={getAllWorkplaces()}
+                                onScreenshotClick={handleScreenshotClick}
+                            />
+                        ) : (
+                            <>
+                                <h1>Кабінет 329</h1>
+                                <div className="row">
+                                    {/* Left column (workplaces 10-18) */}
+                                    <div className="col-md-6">
+                                        {classroomData?.workplaces_2?.map(workplace => renderWorkplaceCard(workplace))}
+                                    </div>
 
-                        <div className="row">
-                            {/* Left column (workplaces 10-18) */}
-                            <div className="col-md-6">
-                                {classroomData?.workplaces_2?.map(workplace => renderWorkplaceCard(workplace))}
-                            </div>
-
-                            {/* Right column (workplaces 9-1) */}
-                            <div className="col-md-6">
-                                {classroomData?.workplaces_1?.map(workplace => renderWorkplaceCard(workplace))}
-                            </div>
-                        </div>
+                                    {/* Right column (workplaces 9-1) */}
+                                    <div className="col-md-6">
+                                        {classroomData?.workplaces_1?.map(workplace => renderWorkplaceCard(workplace))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     <div className="col-md-3">
