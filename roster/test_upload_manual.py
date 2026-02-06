@@ -81,6 +81,36 @@ def test_screenshot_upload():
     # Check DB
     w = Workplace.objects.get(workplace_number=int(workplace_id))
     print(f"DB Record: {w.workplace_number}, {w.last_screenshot_filename}, {w.last_screenshot_at}")
+
+    # Test Regex Extraction
+    print("\nTesting Regex extraction (user-5)...")
+    request = factory.post(
+        f'/api/classrooms/329/workplaces/user-5/screenshot/',
+        {'file':  SimpleUploadedFile("rx.png", b"rx", content_type="image/png")}
+    )
+    # Check if folder '5' exists and has files (we reused '1' but now '5')
+    resp2 = upload_screenshot_329(request, 'user-5')
+    if resp2.status_code == 200:
+        print("Regex upload success.")
+        # Check folder '5'
+        if os.path.exists(os.path.join(settings.BASE_DIR, 'data', 'screenshots', '5')):
+            print("Folder '5' exists.")
+    else:
+        print(f"Regex upload FAILED: {resp2.content}")
+        
+    # Test Fallback
+    print("\nTesting Fallback (teacher_pc)...")
+    request = factory.post(
+        f'/api/classrooms/329/workplaces/teacher_pc/screenshot/',
+        {'file':  SimpleUploadedFile("fb.png", b"fb", content_type="image/png")}
+    )
+    resp3 = upload_screenshot_329(request, 'teacher_pc')
+    if resp3.status_code == 200:
+        print("Fallback upload success.")
+        if os.path.exists(os.path.join(settings.BASE_DIR, 'data', 'screenshots', 'teacher_pc')):
+            print("Folder 'teacher_pc' exists.")
+    else:
+        print(f"Fallback upload FAILED: {resp3.content}")
     
 if __name__ == "__main__":
     test_screenshot_upload()

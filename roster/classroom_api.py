@@ -293,14 +293,15 @@ def upload_screenshot_329(request, workplace_id):
     """
     import os
     import glob
+    import re
     from roster.models import Workplace
     
-    try:
-        workplace_num = int(workplace_id)
-        if not (1 <= workplace_num <= 18):
-            return JsonResponse({'error': 'Invalid workplace number (1-18)'}, status=400)
-    except ValueError:
-        return JsonResponse({'error': 'Invalid workplace ID'}, status=400)
+    # Extract directory name logic
+    match = re.search(r'-(\d+)', workplace_id)
+    if match:
+        workplace_dir_name = match.group(1)
+    else:
+        workplace_dir_name = workplace_id
 
     if 'file' not in request.FILES:
         return JsonResponse({'error': 'No file part'}, status=400)
@@ -310,7 +311,7 @@ def upload_screenshot_329(request, workplace_id):
         return JsonResponse({'error': 'No selected file'}, status=400)
     
     # Create directory if not exists
-    dir_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', str(workplace_num))
+    dir_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', str(workplace_dir_name))
     os.makedirs(dir_path, exist_ok=True)
     
     # Generate filename with timestamp
@@ -337,14 +338,19 @@ def upload_screenshot_329(request, workplace_id):
         # Don't fail the request if rotation fails, but maybe log it
         print(f"Error rotating screenshots: {e}")
 
-    # Update database
-    workplace, _ = Workplace.objects.get_or_create(workplace_number=workplace_num)
-    workplace.last_screenshot_at = datetime.datetime.now()
-    workplace.last_screenshot_filename = filename
-    workplace.save()
+    # Update database only if we have a valid numbered workplace (1-18)
+    try:
+        workplace_num = int(workplace_dir_name)
+        if 1 <= workplace_num <= 18:
+            workplace, _ = Workplace.objects.get_or_create(workplace_number=workplace_num)
+            workplace.last_screenshot_at = datetime.datetime.now()
+            workplace.last_screenshot_filename = filename
+            workplace.save()
+    except ValueError:
+        pass # Not a numbered workplace, just skip DB update
     
     return JsonResponse({
         'success': True,
-        'workplace_number': workplace_num,
+        'workplace_dir': workplace_dir_name,
         'filename': filename
     })
