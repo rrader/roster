@@ -51,6 +51,21 @@ class StudentGroupFeature(models.Model):
         return f"{self.group.name} - {self.get_feature_key_display()}"
 
 
+class Classroom(models.Model):
+    """Model for storing classroom-specific settings"""
+    classroom_id = models.CharField(max_length=50, primary_key=True, verbose_name="ID кабінету")
+    screenshots_enabled = models.BooleanField(default=True, verbose_name="Скріншоти увімкнені")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата створення")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата оновлення")
+    
+    class Meta:
+        verbose_name = "Кабінет"
+        verbose_name_plural = "Кабінети"
+    
+    def __str__(self):
+        return f"Кабінет {self.classroom_id}"
+
+
 class UserProfile(models.Model):
     """Extended user profile with additional settings"""
     user = models.OneToOneField('auth.User', on_delete=models.CASCADE, related_name='profile')

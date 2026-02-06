@@ -4,12 +4,12 @@ from collections import defaultdict
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 import json
 
-from roster.models import WorkplaceUserPlacement
+from roster.models import WorkplaceUserPlacement, Classroom
 from roster.features import check_group_constraints
 from roster.views import current_lesson, sort_ukrainian
 
@@ -47,20 +47,21 @@ def get_classroom_329(request):
     
     lesson = int(request.GET.get('lesson', current_lesson(datetime.datetime.now())))
     
-    if lesson < 1 or lesson > 9:
-        return JsonResponse({'error': 'Lesson must be between 1 and 9'}, status=400)
+    if lesson < 0 or lesson > 7:
+        return JsonResponse({'error': 'Lesson must be between 0 and 7'}, status=400)
     
     # Calculate lesson range
     if singles:
         lesson_from = lesson
         lesson_to = lesson
     else:
-        lesson_from = max(1, lesson - 1)
-        lesson_to = lesson
+        # For paired lessons: lesson 0 -> 0-1, lesson 2 -> 2-3, etc.
+        lesson_from = lesson
+        lesson_to = lesson + 1
     
     # Get lesson times
-    lesson_start = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_from - 1]['end'])
-    lesson_end = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_to + 1]['start'])
+    lesson_start = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_from]['start'])
+    lesson_end = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_to]['end'])
     
     # Query placements
     placements = WorkplaceUserPlacement.objects.filter(
@@ -103,6 +104,12 @@ def get_classroom_329(request):
             'placements': [serialize_placement(p) for p in classroom[i]]
         })
     
+    # Get classroom settings
+    classroom, _ = Classroom.objects.get_or_create(
+        classroom_id='329',
+        defaults={'screenshots_enabled': True}
+    )
+    
     return JsonResponse({
         'classroom_id': 329,
         'date': date_str,
@@ -117,6 +124,7 @@ def get_classroom_329(request):
         'unique_users_count': uniq,
         'usernames': sort_ukrainian(usernames),
         'last_updated': datetime.datetime.now().isoformat(),
+        'screenshots_enabled': classroom.screenshots_enabled,
     })
 
 
@@ -201,3 +209,63 @@ def remove_workplace_329(request, workplace_id):
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET", "PATCH"])
+def manage_screenshots_329(request):
+    """
+    GET /api/classrooms/329/screenshots/
+    Returns current screenshot status
+    
+    PATCH /api/classrooms/329/screenshots/
+    Updates screenshot status with JSON body: {"screenshots_enabled": true/false}
+    """
+    classroom, _ = Classroom.objects.get_or_create(
+        classroom_id='329',
+        defaults={'screenshots_enabled': True}
+    )
+    
+    if request.method == 'GET':
+        return JsonResponse({
+            'classroom_id': '329',
+            'screenshots_enabled': classroom.screenshots_enabled,
+        })
+    
+    elif request.method == 'PATCH':
+        try:
+            data = json.loads(request.body)
+            screenshots_enabled = data.get('screenshots_enabled')
+            
+            if screenshots_enabled is None:
+                return JsonResponse({'error': 'screenshots_enabled is required'}, status=400)
+            
+            if not isinstance(screenshots_enabled, bool):
+                return JsonResponse({'error': 'screenshots_enabled must be a boolean'}, status=400)
+            
+            classroom.screenshots_enabled = screenshots_enabled
+            classroom.save()
+            
+            return JsonResponse({
+                'success': True,
+                'classroom_id': '329',
+                'screenshots_enabled': classroom.screenshots_enabled,
+            })
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def screenshots_status_329(request):
+    """
+    GET /api/classrooms/329/screenshots/status/
+    Simple endpoint for PowerShell scripts - returns "1" if enabled, "0" if disabled
+    """
+    classroom, _ = Classroom.objects.get_or_create(
+        classroom_id='329',
+        defaults={'screenshots_enabled': True}
+    )
+    
+    return HttpResponse("1" if classroom.screenshots_enabled else "0", content_type="text/plain")

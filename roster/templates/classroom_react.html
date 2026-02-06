@@ -330,6 +330,7 @@
         const [lesson, setLesson] = useState(null); // Will be fetched from server
         const [singles, setSingles] = useState(false);
         const [autoUpdate, setAutoUpdate] = useState(true); // Auto-update lesson
+        const [screenshotsEnabled, setScreenshotsEnabled] = useState(true); // Screenshots toggle
 
         // Modal state
         const [modalOpen, setModalOpen] = useState(false);
@@ -399,6 +400,11 @@
                 // Auto-update lesson if enabled and lesson has changed
                 if (autoUpdate && data.lesson && data.lesson.toString() !== lesson) {
                     setLesson(data.lesson.toString());
+                }
+
+                // Update screenshots state from server
+                if (data.screenshots_enabled !== undefined) {
+                    setScreenshotsEnabled(data.screenshots_enabled);
                 }
             } catch (err) {
                 setError(err.message);
@@ -474,6 +480,30 @@
         const handleDeleteCancel = () => {
             setDeleteModalOpen(false);
             setPlacementToDelete(null);
+        };
+
+        const handleScreenshotsToggle = async (enabled) => {
+            try {
+                const response = await fetch('/api/classrooms/329/screenshots/', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ screenshots_enabled: enabled }),
+                });
+
+                if (response.ok) {
+                    setScreenshotsEnabled(enabled);
+                } else {
+                    console.error('Failed to update screenshots setting');
+                    // Revert on error
+                    setScreenshotsEnabled(!enabled);
+                }
+            } catch (err) {
+                console.error('Error updating screenshots setting:', err);
+                // Revert on error
+                setScreenshotsEnabled(!enabled);
+            }
         };
 
         if (loading && !classroomData) {
@@ -560,6 +590,19 @@
                             />
                             <label htmlFor="autoUpdateFilter" className="form-check-label">
                                 Не оновлювати
+                            </label>
+                        </div>
+
+                        <div className="form-check mt-2">
+                            <input
+                                type="checkbox"
+                                id="screenshotsFilter"
+                                className="form-check-input"
+                                checked={screenshotsEnabled}
+                                onChange={(e) => handleScreenshotsToggle(e.target.checked)}
+                            />
+                            <label htmlFor="screenshotsFilter" className="form-check-label">
+                                Скріншоти увімкнені
                             </label>
                         </div>
 
