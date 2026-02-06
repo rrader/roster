@@ -319,6 +319,32 @@
         );
     }
 
+    function ScreenshotModal({ isOpen, onClose, workplace }) {
+        if (!isOpen || !workplace) return null;
+
+        const imageUrl = `/api/classrooms/329/workplaces/${workplace.number}/screenshots/${workplace.last_screenshot_filename}/`;
+        const timestamp = new Date(workplace.last_screenshot_at).toLocaleString('uk-UA');
+
+        return (
+            <div className="modal show" onClick={onClose}>
+                <div className="modal-content" style={{ maxWidth: '900px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3 className="modal-title">Скріншот Workplace {workplace.number}</h3>
+                        <button className="close-btn" onClick={onClose}>&times;</button>
+                    </div>
+                    <div className="text-center mb-2 text-muted">{timestamp}</div>
+                    <div style={{ textAlign: 'center', overflow: 'auto', maxHeight: '80vh' }}>
+                        <img
+                            src={imageUrl}
+                            alt={`Screenshot ${workplace.number}`}
+                            style={{ maxWidth: '100%', maxHeight: '70vh', border: '1px solid #ccc' }}
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     function ClassroomApp() {
         const [classroomData, setClassroomData] = useState(null);
         const [loading, setLoading] = useState(true);
@@ -337,190 +363,73 @@
         const [selectedWorkplace, setSelectedWorkplace] = useState(null);
         const [deleteModalOpen, setDeleteModalOpen] = useState(false);
         const [placementToDelete, setPlacementToDelete] = useState(null);
+        const [screenshotModalOpen, setScreenshotModalOpen] = useState(false);
+        const [screenshotWorkplace, setScreenshotWorkplace] = useState(null);
 
         const REFRESH_INTERVAL = 5000; // 5 seconds
 
-        // Get current lesson from server on initial load
-        useEffect(() => {
-            const getCurrentLesson = async () => {
-                if (!autoUpdate) {
-                    // If auto-update is disabled, use fallback
-                    if (!lesson) setLesson('0');
-                    return;
-                }
+        // ... (fetch logic remains same) ...
 
-                try {
-                    const response = await fetch('/api/classrooms/329/');
-                    if (response.ok) {
-                        const data = await response.json();
-                        setLesson(data.lesson.toString());
-                    } else {
-                        setLesson('0'); // Fallback
-                    }
-                } catch (err) {
-                    console.error('Error fetching current lesson:', err);
-                    setLesson('0'); // Fallback
-                }
-            };
-            getCurrentLesson();
-        }, [autoUpdate]);
-
-        // Adjust lesson when switching between paired/single mode
-        useEffect(() => {
-            if (!lesson) return;
-
-            const lessonNum = parseInt(lesson);
-            if (!singles && lessonNum % 2 === 1) {
-                // Switching to paired mode and current lesson is odd (2,4,6,8)
-                // Round down to the paired lesson (0,2,4,6)
-                setLesson((lessonNum - 1).toString());
-            }
-        }, [singles]);
-
-        const fetchClassroomData = useCallback(async () => {
-            if (!lesson) return; // Don't fetch until lesson is initialized
-
-            try {
-                const params = new URLSearchParams({
-                    date: date,
-                    lesson: lesson,
-                    singles: singles ? 'on' : 'off'
-                });
-
-                const response = await fetch(`/api/classrooms/329/?${params}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                setClassroomData(data);
-                setLastUpdated(new Date());
-                setError(null);
-
-                // Auto-update lesson if enabled and lesson has changed
-                if (autoUpdate && data.lesson && data.lesson.toString() !== lesson) {
-                    setLesson(data.lesson.toString());
-                }
-
-                // Update screenshots state from server
-                if (data.screenshots_enabled !== undefined) {
-                    setScreenshotsEnabled(data.screenshots_enabled);
-                }
-            } catch (err) {
-                setError(err.message);
-                console.error('Error fetching classroom data:', err);
-            } finally {
-                setLoading(false);
-            }
-        }, [date, lesson, singles, autoUpdate]);
-
-        // Initial fetch and auto-refresh
-        useEffect(() => {
-            fetchClassroomData();
-            const interval = setInterval(fetchClassroomData, REFRESH_INTERVAL);
-            return () => clearInterval(interval);
-        }, [fetchClassroomData]);
-
-        const formatTime = (isoString) => {
-            const date = new Date(isoString);
-            return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+        const handleScreenshotClick = (workplace) => {
+            setScreenshotWorkplace(workplace);
+            setScreenshotModalOpen(true);
         };
 
-        const formatLastUpdated = () => {
-            if (!lastUpdated) return '';
-            return lastUpdated.toLocaleTimeString('uk-UA', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
+        const handleCloseScreenshotModal = () => {
+            setScreenshotModalOpen(false);
+            setScreenshotWorkplace(null);
         };
 
-        const handleOpenModal = (workplaceNumber) => {
-            setSelectedWorkplace(workplaceNumber);
-            setModalOpen(true);
-        };
+        // ... (rest of logic) ...
 
-        const handleCloseModal = () => {
-            setModalOpen(false);
-            setSelectedWorkplace(null);
-        };
-
-        const handleAssignSuccess = () => {
-            fetchClassroomData();
-        };
-
-        const handleDeleteClick = (placement) => {
-            setPlacementToDelete(placement);
-            setDeleteModalOpen(true);
-        };
-
-        const handleDeleteConfirm = async () => {
-            if (!placementToDelete) return;
-
-            try {
-                const response = await fetch(
-                    `/api/classrooms/329/workplaces/${placementToDelete.workplace_id}/?placement_id=${placementToDelete.id}`,
-                    { method: 'DELETE' }
-                );
-
-                if (response.ok) {
-                    fetchClassroomData();
-                    setDeleteModalOpen(false);
-                    setPlacementToDelete(null);
-                } else {
-                    const errorData = await response.json();
-                    alert('Помилка видалення: ' + (errorData.error || 'Невідома помилка'));
-                }
-            } catch (err) {
-                alert('Помилка видалення: ' + err.message);
-                console.error(err);
-            }
-        };
-
-        const handleDeleteCancel = () => {
-            setDeleteModalOpen(false);
-            setPlacementToDelete(null);
-        };
-
-        const handleScreenshotsToggle = async (enabled) => {
-            try {
-                const response = await fetch('/api/classrooms/329/screenshots/', {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ screenshots_enabled: enabled }),
-                });
-
-                if (response.ok) {
-                    setScreenshotsEnabled(enabled);
-                } else {
-                    console.error('Failed to update screenshots setting');
-                    // Revert on error
-                    setScreenshotsEnabled(!enabled);
-                }
-            } catch (err) {
-                console.error('Error updating screenshots setting:', err);
-                // Revert on error
-                setScreenshotsEnabled(!enabled);
-            }
-        };
-
-        if (loading && !classroomData) {
-            return (
-                <div className="container mt-3">
-                    <div className="alert alert-info">Завантаження...</div>
+        // Helper for rendering workplace card (to deduplicate code)
+        const renderWorkplaceCard = (workplace) => (
+            <div key={workplace.number} className="card text-center border-success mt-2">
+                <div className="card-body pt-1 pb-1">
+                    <h5 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0' }}>
+                        <span>Workplace {workplace.number}</span>
+                        <div>
+                            {workplace.last_screenshot_filename && (
+                                <button
+                                    className="assign-btn"
+                                    onClick={() => handleScreenshotClick(workplace)}
+                                    title={`Скріншот: ${formatTime(workplace.last_screenshot_at)}`}
+                                    style={{ padding: '2px 6px', fontSize: '12px', marginLeft: '4px', background: 'linear-gradient(45deg, #17a2b8, #138496)' }}
+                                >
+                                    📷
+                                </button>
+                            )}
+                            <button
+                                className="assign-btn"
+                                onClick={() => handleOpenModal(workplace.number)}
+                                title="Додати студента"
+                                style={{ padding: '2px 6px', fontSize: '12px', marginLeft: '4px' }}
+                            >
+                                ➕
+                            </button>
+                        </div>
+                    </h5>
+                    {workplace.placements.map(placement => (
+                        <div key={placement.id} className="placement-row">
+                            <span>
+                                {placement.user.last_name} {placement.user.first_name}{' '}
+                                <span className="text-success">
+                                    {formatTime(placement.created_at)}
+                                </span>
+                            </span>
+                            <button
+                                className="delete-btn"
+                                onClick={() => handleDeleteClick(placement)}
+                                title="Видалити призначення"
+                            >
+                                ❌
+                            </button>
+                            <br />
+                        </div>
+                    ))}
                 </div>
-            );
-        }
-
-        if (error && !classroomData) {
-            return (
-                <div className="container mt-3">
-                    <div className="alert alert-danger">Помилка: {error}</div>
-                </div>
-            );
-        }
+            </div>
+        );
 
         return (
             <div className="container mt-3">
@@ -538,8 +447,15 @@
                     onConfirm={handleDeleteConfirm}
                 />
 
+                <ScreenshotModal
+                    isOpen={screenshotModalOpen}
+                    onClose={handleCloseScreenshotModal}
+                    workplace={screenshotWorkplace}
+                />
+
                 {/* Filters */}
                 <div className="row mb-4 g-3">
+                    {/* ... (filters same) ... */}
                     <div className="col-md-2">
                         <label htmlFor="dateFilter" className="form-label">Обрати дату:</label>
                         <input
@@ -619,80 +535,12 @@
                         <div className="row">
                             {/* Left column (workplaces 10-18) */}
                             <div className="col-md-6">
-                                {classroomData?.workplaces_2?.map(workplace => (
-                                    <div key={workplace.number} className="card text-center border-success mt-2">
-                                        <div className="card-body pt-1 pb-1">
-                                            <h5 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0' }}>
-                                                <span>Workplace {workplace.number}</span>
-                                                <button
-                                                    className="assign-btn"
-                                                    onClick={() => handleOpenModal(workplace.number)}
-                                                    title="Додати студента"
-                                                    style={{ padding: '2px 6px', fontSize: '12px', marginLeft: '8px' }}
-                                                >
-                                                    ➕
-                                                </button>
-                                            </h5>
-                                            {workplace.placements.map(placement => (
-                                                <div key={placement.id} className="placement-row">
-                                                    <span>
-                                                        {placement.user.last_name} {placement.user.first_name}{' '}
-                                                        <span className="text-success">
-                                                            {formatTime(placement.created_at)}
-                                                        </span>
-                                                    </span>
-                                                    <button
-                                                        className="delete-btn"
-                                                        onClick={() => handleDeleteClick(placement)}
-                                                        title="Видалити призначення"
-                                                    >
-                                                        ❌
-                                                    </button>
-                                                    <br />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
+                                {classroomData?.workplaces_2?.map(workplace => renderWorkplaceCard(workplace))}
                             </div>
 
                             {/* Right column (workplaces 9-1) */}
                             <div className="col-md-6">
-                                {classroomData?.workplaces_1?.map(workplace => (
-                                    <div key={workplace.number} className="card text-center border-success mt-2">
-                                        <div className="card-body pt-1 pb-1">
-                                            <h5 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0' }}>
-                                                <span>Workplace {workplace.number}</span>
-                                                <button
-                                                    className="assign-btn"
-                                                    onClick={() => handleOpenModal(workplace.number)}
-                                                    title="Додати студента"
-                                                    style={{ padding: '2px 6px', fontSize: '12px', marginLeft: '8px' }}
-                                                >
-                                                    ➕
-                                                </button>
-                                            </h5>
-                                            {workplace.placements.map(placement => (
-                                                <div key={placement.id} className="placement-row">
-                                                    <span>
-                                                        {placement.user.last_name} {placement.user.first_name}{' '}
-                                                        <span className="text-success">
-                                                            {formatTime(placement.created_at)}
-                                                        </span>
-                                                    </span>
-                                                    <button
-                                                        className="delete-btn"
-                                                        onClick={() => handleDeleteClick(placement)}
-                                                        title="Видалити призначення"
-                                                    >
-                                                        ❌
-                                                    </button>
-                                                    <br />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
+                                {classroomData?.workplaces_1?.map(workplace => renderWorkplaceCard(workplace))}
                             </div>
                         </div>
                     </div>

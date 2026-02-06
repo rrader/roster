@@ -103,19 +103,27 @@ def get_classroom_329(request):
             usernames.append(name)
     
     # Format workplace groups
+    from roster.models import Workplace
+    
+    # Pre-fetch all workplaces info
+    workplaces_info = {w.workplace_number: w for w in Workplace.objects.all()}
+
+    def get_wp_data(i):
+        w = workplaces_info.get(i)
+        return {
+            'number': i,
+            'placements': [serialize_placement(p) for p in classroom[i]],
+            'last_screenshot_filename': w.last_screenshot_filename if w else None,
+            'last_screenshot_at': w.last_screenshot_at.isoformat() if w and w.last_screenshot_at else None
+        }
+
     g1 = []
     for i in range(9, 0, -1):
-        g1.append({
-            'number': i,
-            'placements': [serialize_placement(p) for p in classroom[i]]
-        })
+        g1.append(get_wp_data(i))
     
     g2 = []
     for i in range(10, 19):
-        g2.append({
-            'number': i,
-            'placements': [serialize_placement(p) for p in classroom[i]]
-        })
+        g2.append(get_wp_data(i))
     
     # Get classroom settings
     classroom, _ = Classroom.objects.get_or_create(
@@ -354,3 +362,28 @@ def upload_screenshot_329(request, workplace_id):
         'workplace_dir': workplace_dir_name,
         'filename': filename
     })
+
+
+@require_http_methods(["GET"])
+def serve_screenshot_329(request, workplace_id, filename):
+    """
+    GET /api/classrooms/329/workplaces/<workplace_id>/screenshots/<filename>/
+    Securely serves a screenshot file
+    """
+    import os
+    from django.http import FileResponse, Http404
+    
+    # Basic validation of workplace_id to prevent directory traversal
+    if not re.match(r'^[\w-]+$', workplace_id):
+        raise Http404("Invalid workplace ID")
+        
+    # Validation of filename
+    if not re.match(r'^[\w-]+\.png$', filename):
+        raise Http404("Invalid filename")
+
+    file_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', workplace_id, filename)
+    
+    if not os.path.exists(file_path):
+        raise Http404("Screenshot not found")
+        
+    return FileResponse(open(file_path, 'rb'), content_type='image/png')
