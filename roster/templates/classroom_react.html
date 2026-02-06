@@ -448,7 +448,7 @@
                         if (hasScreenshot) statusClass = isStale ? 'stale' : 'active';
 
                         const imageUrl = hasScreenshot
-                            ? `/api/classrooms/329/workplaces/${wp.number}/screenshots/${wp.last_screenshot_filename}/`
+                            ? `/api/classrooms/329/workplaces/${wp.number}/screenshots/${wp.last_screenshot_filename}/?t=${lastUpdate ? lastUpdate.getTime() : Date.now()}`
                             : null;
 
                         return (
