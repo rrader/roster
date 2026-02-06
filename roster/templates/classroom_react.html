@@ -574,9 +574,9 @@
                         <h1>Кабінет 329</h1>
 
                         <div className="row">
-                            {/* Left column (workplaces 9-1) */}
+                            {/* Left column (workplaces 10-18) */}
                             <div className="col-md-6">
-                                {classroomData?.workplaces_1?.map(workplace => (
+                                {classroomData?.workplaces_2?.map(workplace => (
                                     <div key={workplace.number} className="card text-center border-success mt-2">
                                         <div className="card-body pt-1 pb-1">
                                             <h5 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0' }}>
@@ -613,9 +613,9 @@
                                 ))}
                             </div>
 
-                            {/* Right column (workplaces 10-18) */}
+                            {/* Right column (workplaces 9-1) */}
                             <div className="col-md-6">
-                                {classroomData?.workplaces_2?.map(workplace => (
+                                {classroomData?.workplaces_1?.map(workplace => (
                                     <div key={workplace.number} className="card text-center border-success mt-2">
                                         <div className="card-body pt-1 pb-1">
                                             <h5 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0' }}>
