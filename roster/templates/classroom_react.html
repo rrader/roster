@@ -368,7 +368,86 @@
 
         const REFRESH_INTERVAL = 5000; // 5 seconds
 
-        // ... (fetch logic remains same) ...
+        // Get current lesson from server on initial load
+        useEffect(() => {
+            const getCurrentLesson = async () => {
+                if (!autoUpdate) {
+                    // If auto-update is disabled, use fallback
+                    if (!lesson) setLesson('0');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/classrooms/329/');
+                    if (response.ok) {
+                        const data = await response.json();
+                        setLesson(data.lesson.toString());
+                    } else {
+                        setLesson('0'); // Fallback
+                    }
+                } catch (err) {
+                    console.error('Error fetching current lesson:', err);
+                    setLesson('0'); // Fallback
+                }
+            };
+            getCurrentLesson();
+        }, [autoUpdate]);
+
+        // Adjust lesson when switching between paired/single mode
+        useEffect(() => {
+            if (!lesson) return;
+
+            const lessonNum = parseInt(lesson);
+            if (!singles && lessonNum % 2 === 1) {
+                // Switching to paired mode and current lesson is odd (2,4,6,8)
+                // Round down to the paired lesson (0,2,4,6)
+                setLesson((lessonNum - 1).toString());
+            }
+        }, [singles]);
+
+        const fetchClassroomData = useCallback(async () => {
+            if (!lesson) return; // Don't fetch until lesson is initialized
+
+            try {
+                const params = new URLSearchParams({
+                    date: date,
+                    lesson: lesson,
+                    singles: singles ? 'on' : 'off'
+                });
+
+                const response = await fetch(`/api/classrooms/329/?${params}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                setClassroomData(data);
+                setLastUpdated(new Date());
+                setError(null);
+
+                // Auto-update lesson if enabled and lesson has changed
+                if (autoUpdate && data.lesson && data.lesson.toString() !== lesson) {
+                    setLesson(data.lesson.toString());
+                }
+
+                // Update screenshots state from server
+                if (data.screenshots_enabled !== undefined) {
+                    setScreenshotsEnabled(data.screenshots_enabled);
+                }
+            } catch (err) {
+                setError(err.message);
+                console.error('Error fetching classroom data:', err);
+            } finally {
+                setLoading(false);
+            }
+        }, [date, lesson, singles, autoUpdate]);
+
+        // Initial fetch and auto-refresh
+        useEffect(() => {
+            fetchClassroomData();
+            const interval = setInterval(fetchClassroomData, REFRESH_INTERVAL);
+            return () => clearInterval(interval);
+        }, [fetchClassroomData]);
 
         const handleScreenshotClick = (workplace) => {
             setScreenshotWorkplace(workplace);
@@ -380,7 +459,90 @@
             setScreenshotWorkplace(null);
         };
 
-        // ... (rest of logic) ...
+        const formatTime = (isoString) => {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+        };
+
+        const formatLastUpdated = () => {
+            if (!lastUpdated) return '';
+            return lastUpdated.toLocaleTimeString('uk-UA', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        };
+
+        const handleOpenModal = (workplaceNumber) => {
+            setSelectedWorkplace(workplaceNumber);
+            setModalOpen(true);
+        };
+
+        const handleCloseModal = () => {
+            setModalOpen(false);
+            setSelectedWorkplace(null);
+        };
+
+        const handleAssignSuccess = () => {
+            fetchClassroomData();
+        };
+
+        const handleDeleteClick = (placement) => {
+            setPlacementToDelete(placement);
+            setDeleteModalOpen(true);
+        };
+
+        const handleDeleteConfirm = async () => {
+            if (!placementToDelete) return;
+
+            try {
+                const response = await fetch(
+                    `/api/classrooms/329/workplaces/${placementToDelete.workplace_id}/?placement_id=${placementToDelete.id}`,
+                    { method: 'DELETE' }
+                );
+
+                if (response.ok) {
+                    fetchClassroomData();
+                    setDeleteModalOpen(false);
+                    setPlacementToDelete(null);
+                } else {
+                    const errorData = await response.json();
+                    alert('Помилка видалення: ' + (errorData.error || 'Невідома помилка'));
+                }
+            } catch (err) {
+                alert('Помилка видалення: ' + err.message);
+                console.error(err);
+            }
+        };
+
+        const handleDeleteCancel = () => {
+            setDeleteModalOpen(false);
+            setPlacementToDelete(null);
+        };
+
+        const handleScreenshotsToggle = async (enabled) => {
+            try {
+                const response = await fetch('/api/classrooms/329/screenshots/', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ screenshots_enabled: enabled }),
+                });
+
+                if (response.ok) {
+                    setScreenshotsEnabled(enabled);
+                } else {
+                    console.error('Failed to update screenshots setting');
+                    // Revert on error
+                    setScreenshotsEnabled(!enabled);
+                }
+            } catch (err) {
+                console.error('Error updating screenshots setting:', err);
+                // Revert on error
+                setScreenshotsEnabled(!enabled);
+            }
+        };
 
         // Helper for rendering workplace card (to deduplicate code)
         const renderWorkplaceCard = (workplace) => (
