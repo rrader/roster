@@ -299,7 +299,7 @@ def upload_screenshot_329(request, workplace_id):
     # Extract directory name logic
     match = re.search(r'-(\d+)', workplace_id)
     if match:
-        workplace_dir_name = match.group(1)
+        workplace_dir_name = int(match.group(1))
     else:
         workplace_dir_name = workplace_id
 
