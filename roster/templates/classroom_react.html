@@ -344,7 +344,7 @@
             const getCurrentLesson = async () => {
                 if (!autoUpdate) {
                     // If auto-update is disabled, use fallback
-                    if (!lesson) setLesson('1');
+                    if (!lesson) setLesson('0');
                     return;
                 }
 
@@ -354,15 +354,27 @@
                         const data = await response.json();
                         setLesson(data.lesson.toString());
                     } else {
-                        setLesson('1'); // Fallback
+                        setLesson('0'); // Fallback
                     }
                 } catch (err) {
                     console.error('Error fetching current lesson:', err);
-                    setLesson('1'); // Fallback
+                    setLesson('0'); // Fallback
                 }
             };
             getCurrentLesson();
         }, [autoUpdate]);
+
+        // Adjust lesson when switching between paired/single mode
+        useEffect(() => {
+            if (!lesson) return;
+
+            const lessonNum = parseInt(lesson);
+            if (!singles && lessonNum % 2 === 1) {
+                // Switching to paired mode and current lesson is odd (2,4,6,8)
+                // Round down to the paired lesson (0,2,4,6)
+                setLesson((lessonNum - 1).toString());
+            }
+        }, [singles]);
 
         const fetchClassroomData = useCallback(async () => {
             if (!lesson) return; // Don't fetch until lesson is initialized
@@ -515,9 +527,14 @@
                             value={lesson}
                             onChange={(e) => setLesson(e.target.value)}
                         >
-                            {[0, 1, 2, 3, 4, 5, 6, 7].map(num => (
-                                <option key={num} value={num}>{num + 1} урок</option>
-                            ))}
+                            {singles
+                                ? [0, 1, 2, 3, 4, 5, 6, 7].map(num => (
+                                    <option key={num} value={num}>{num + 1} урок</option>
+                                ))
+                                : [0, 2, 4, 6].map(num => (
+                                    <option key={num} value={num}>{num + 1}-{num + 2} уроки</option>
+                                ))
+                            }
                         </select>
 
                         <div className="form-check mt-2">
