@@ -383,13 +383,18 @@
                 setClassroomData(data);
                 setLastUpdated(new Date());
                 setError(null);
+
+                // Auto-update lesson if enabled and lesson has changed
+                if (autoUpdate && data.lesson && data.lesson.toString() !== lesson) {
+                    setLesson(data.lesson.toString());
+                }
             } catch (err) {
                 setError(err.message);
                 console.error('Error fetching classroom data:', err);
             } finally {
                 setLoading(false);
             }
-        }, [date, lesson, singles]);
+        }, [date, lesson, singles, autoUpdate]);
 
         // Initial fetch and auto-refresh
         useEffect(() => {
@@ -510,8 +515,8 @@
                             value={lesson}
                             onChange={(e) => setLesson(e.target.value)}
                         >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                                <option key={num} value={num}>{num} урок</option>
+                            {[0, 1, 2, 3, 4, 5, 6, 7].map(num => (
+                                <option key={num} value={num}>{num + 1} урок</option>
                             ))}
                         </select>
 
