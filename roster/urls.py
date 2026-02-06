@@ -17,6 +17,7 @@ urlpatterns = [
     path("api/classrooms/329/", classroom_api.get_classroom_329, name='api_classroom_329'),
     path("api/classrooms/329/workplaces/<str:workplace_id>/assign/", classroom_api.assign_workplace_329, name='api_assign_workplace_329'),
     path("api/classrooms/329/workplaces/<str:workplace_id>/", classroom_api.remove_workplace_329, name='api_remove_workplace_329'),
+    path("api/classrooms/329/workplaces/<str:workplace_id>/screenshot/", classroom_api.upload_screenshot_329, name='api_upload_screenshot_329'),
     path("api/classrooms/329/screenshots/", classroom_api.manage_screenshots_329, name='api_screenshots_329'),
     path("api/classrooms/329/screenshots/status/", classroom_api.screenshots_status_329, name='api_screenshots_status_329'),
     

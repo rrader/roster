@@ -45,19 +45,32 @@ def get_classroom_329(request):
     except ValueError:
         return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
     
-    lesson = int(request.GET.get('lesson', current_lesson(datetime.datetime.now())))
+    # Calculate lesson offset
+    # Frontend sends 0-based index where 0 = "1st lesson"
+    # Settings has 0-th lesson (8:00), so "1st lesson" is at key 1
+    # We need to shift everything by +1
+    
+    # Default: current_lesson returns settings key
+    default_lesson_fe = current_lesson(datetime.datetime.now())
+    if default_lesson_fe < 0: default_lesson_fe = 0
+    
+    lesson = int(request.GET.get('lesson', default_lesson_fe))
     
     if lesson < 0 or lesson > 7:
         return JsonResponse({'error': 'Lesson must be between 0 and 7'}, status=400)
     
-    # Calculate lesson range
+    # Calculate lesson range (keys in settings)
+    base_idx = lesson + 1
+    
     if singles:
-        lesson_from = lesson
-        lesson_to = lesson
+        lesson_from = base_idx
+        lesson_to = base_idx
     else:
-        # For paired lessons: lesson 0 -> 0-1, lesson 2 -> 2-3, etc.
-        lesson_from = lesson
-        lesson_to = lesson + 1
+        # For paired lessons: 
+        # FE 0 ("1-2") -> keys 1, 2
+        # FE 6 ("7-8") -> keys 7, 8
+        lesson_from = base_idx
+        lesson_to = base_idx + 1
     
     # Get lesson times
     lesson_start = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_from]['start'])
@@ -269,3 +282,69 @@ def screenshots_status_329(request):
     )
     
     return HttpResponse("1" if classroom.screenshots_enabled else "0", content_type="text/plain")
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def upload_screenshot_329(request, workplace_id):
+    """
+    POST /api/classrooms/329/workplaces/<workplace_id>/screenshot/
+    Uploads a screenshot for the workplace
+    """
+    import os
+    import glob
+    from roster.models import Workplace
+    
+    try:
+        workplace_num = int(workplace_id)
+        if not (1 <= workplace_num <= 18):
+            return JsonResponse({'error': 'Invalid workplace number (1-18)'}, status=400)
+    except ValueError:
+        return JsonResponse({'error': 'Invalid workplace ID'}, status=400)
+
+    if 'file' not in request.FILES:
+        return JsonResponse({'error': 'No file part'}, status=400)
+    
+    file = request.FILES['file']
+    if file.name == '':
+        return JsonResponse({'error': 'No selected file'}, status=400)
+    
+    # Create directory if not exists
+    dir_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', str(workplace_num))
+    os.makedirs(dir_path, exist_ok=True)
+    
+    # Generate filename with timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{timestamp}.png"
+    file_path = os.path.join(dir_path, filename)
+    
+    try:
+        with open(file_path, 'wb+') as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
+    except Exception as e:
+        return JsonResponse({'error': f'Failed to write file: {str(e)}'}, status=500)
+        
+    # Validation logic: keep only last 100 screenshots
+    try:
+        files = glob.glob(os.path.join(dir_path, "*.png"))
+        files.sort(key=os.path.getmtime)
+        
+        if len(files) > 100:
+            for f in files[:-100]:
+                os.remove(f)
+    except Exception as e:
+        # Don't fail the request if rotation fails, but maybe log it
+        print(f"Error rotating screenshots: {e}")
+
+    # Update database
+    workplace, _ = Workplace.objects.get_or_create(workplace_number=workplace_num)
+    workplace.last_screenshot_at = datetime.datetime.now()
+    workplace.last_screenshot_filename = filename
+    workplace.save()
+    
+    return JsonResponse({
+        'success': True,
+        'workplace_number': workplace_num,
+        'filename': filename
+    })

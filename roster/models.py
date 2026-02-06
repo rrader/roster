@@ -51,6 +51,21 @@ class StudentGroupFeature(models.Model):
         return f"{self.group.name} - {self.get_feature_key_display()}"
 
 
+
+class Workplace(models.Model):
+    """Model which represents a specific workplace and its last screenshot"""
+    workplace_number = models.IntegerField(unique=True, verbose_name="Номер робочого місця")
+    last_screenshot_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата останнього скріншоту")
+    last_screenshot_filename = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ім'я файлу скріншоту")
+    
+    class Meta:
+        verbose_name = "Робоче місце"
+        verbose_name_plural = "Робочі місця"
+    
+    def __str__(self):
+        return f"W-{self.workplace_number}"
+
+
 class Classroom(models.Model):
     """Model for storing classroom-specific settings"""
     classroom_id = models.CharField(max_length=50, primary_key=True, verbose_name="ID кабінету")
