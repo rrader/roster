@@ -232,6 +232,8 @@ def search_users_ajax(request):
 
 def user_json(user):
     return {
+        'id': user.id,
+        'username': user.username,
         'surname': user.last_name, 
         'name': user.first_name,
         'display': f"{user.last_name} {user.first_name}"
@@ -395,69 +397,10 @@ def sort_ukrainian(usernames):
 
 def classroom(request):
     activate('uk')
+    # Render the React-based classroom page
+    # The React app will fetch data from the API
+    return render(request, 'classroom_react.html')
 
-    # default to today in YYYY-mm-dd format
-    today: str = datetime.date.today().strftime('%Y-%m-%d')
-
-    date_str: str = request.GET.get('date', today)
-    singles: bool = request.GET.get('singles', 'off') == 'on'
-
-    date: datetime.date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
-    lesson: int = int(request.GET.get('lesson', current_lesson(now = datetime.datetime.now())))
-
-    if singles:
-        lesson_from = lesson
-        lesson_to = lesson
-    else:
-        lesson_from = max(1, lesson-1)
-        lesson_to = lesson
-
-    lesson_start = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_from - 1]['end'])
-    lesson_end = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_to + 1]['start'])
-
-    placements = WorkplaceUserPlacement.objects.filter(
-        created_at__gte=lesson_start,
-        created_at__lte=lesson_end
-    ).order_by('created_at')
-
-    uniq = 0
-    usernames = []
-    classroom = defaultdict(list)
-    for p in placements:
-        regex = r'.*-(\d+)'
-        if m := re.match(regex, p.workplace_id):
-            n = int(m.group(1))
-            if p.user.id not in [x.user.id for x in classroom[n]]:
-                classroom[n].append(p)
-        else:
-            classroom['other'].append(p)
-
-        name = f"{p.user.last_name} {p.user.first_name}"
-        if name not in usernames:
-            uniq += 1
-            usernames.append(name)
-
-    g1 = []
-    for i in range(9, 0, -1):
-        g1.append((i, classroom[i]))
-
-    g2 = []
-    for i in range(10, 19):
-        g2.append((i, classroom[i]))
-
-    return render(request, 'classroom.html', {
-        'date': date_str,
-        'lesson': str(lesson),
-        'singles': singles,
-        'classroom_1': g1,
-        'classroom_2': g2,
-        'lesson_from': lesson_from,
-        'lesson_to': lesson_to,
-        'lesson_start': lesson_start,
-        'lesson_end': lesson_end,
-        'uniq': uniq,
-        'usernames': sort_ukrainian(usernames),
-    })
 
 
 def logged_in(request):

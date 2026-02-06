@@ -3,6 +3,7 @@ from django.conf.urls.static import static
 from django.conf import settings
 
 from . import views
+from . import classroom_api
 
 urlpatterns = [
     path("", views.index, name="index"),
@@ -11,6 +12,11 @@ urlpatterns = [
     path("classroom_workplace_login/<str:workplace_id>/", views.classroom_workplace_login, name='classroom_workplace_login'),
     path("classroom", views.classroom, name='classroom'),
     path("logged_in/", views.logged_in, name='logged_in'),
+    
+    # Classroom API endpoints
+    path("api/classrooms/329/", classroom_api.get_classroom_329, name='api_classroom_329'),
+    path("api/classrooms/329/workplaces/<str:workplace_id>/assign/", classroom_api.assign_workplace_329, name='api_assign_workplace_329'),
+    path("api/classrooms/329/workplaces/<str:workplace_id>/", classroom_api.remove_workplace_329, name='api_remove_workplace_329'),
     
     # Student Groups URLs
     path("groups/login/", views.groups_login, name='groups_login'),

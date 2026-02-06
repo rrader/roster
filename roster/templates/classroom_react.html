@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div id="classroom-root"></div>
+
+<!-- React and ReactDOM from CDN -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- Babel Standalone for JSX transformation -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+    .assign-btn {
+        background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)) !important;
+        border: none !important;
+        color: var(--btn-text-color) !important;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .assign-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 0 15px var(--shadow-color);
+    }
+
+    .delete-btn {
+        background: none;
+        border: none;
+        color: #ff6b6b;
+        cursor: pointer;
+        font-size: 0.9rem;
+        padding: 0 4px;
+        margin-left: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .delete-btn:hover {
+        color: #ff4444;
+        transform: scale(1.2);
+    }
+
+    .placement-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    .modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background-color: var(--menu-bg);
+        border: 2px solid var(--primary-color);
+        border-radius: 10px;
+        padding: 20px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 0 30px var(--shadow-color);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .modal-title {
+        color: var(--primary-color);
+        font-size: 1.3rem;
+        font-weight: bold;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        color: var(--text-color);
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        line-height: 1;
+    }
+
+    .close-btn:hover {
+        color: var(--primary-color);
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        background-color: var(--input-bg) !important;
+        border: 2px solid var(--primary-color) !important;
+        color: var(--text-color) !important;
+        border-radius: 5px;
+    }
+
+    .user-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 15px;
+    }
+
+    .user-item {
+        padding: 10px;
+        margin-bottom: 5px;
+        background-color: var(--input-bg);
+        border: 1px solid var(--primary-color);
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .user-item:hover {
+        background-color: var(--input-focus-bg);
+        transform: translateX(5px);
+    }
+
+    .loading-text {
+        color: var(--text-color);
+        text-align: center;
+        padding: 20px;
+    }
+
+    .error-text {
+        color: #ff6b6b;
+        padding: 10px;
+        background-color: rgba(255, 0, 0, 0.1);
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+
+    .confirm-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 15px;
+    }
+
+    .confirm-btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s ease;
+    }
+
+    .confirm-btn-yes {
+        background: linear-gradient(45deg, #ff4444, #ff6b6b);
+        color: white;
+    }
+
+    .confirm-btn-yes:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+    }
+
+    .confirm-btn-no {
+        background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        color: var(--btn-text-color);
+    }
+
+    .confirm-btn-no:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 0 10px var(--shadow-color);
+    }
+</style>
+
+{% verbatim %}
+<script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    function AssignmentModal({ isOpen, onClose, workplaceNumber, onAssign }) {
+        const [searchTerm, setSearchTerm] = useState('');
+        const [users, setUsers] = useState([]);
+        const [loading, setLoading] = useState(false);
+        const [error, setError] = useState(null);
+
+        useEffect(() => {
+            if (isOpen && searchTerm.length >= 2) {
+                const timer = setTimeout(async () => {
+                    setLoading(true);
+                    try {
+                        const response = await fetch(`/search_users_ajax/?surname=${encodeURIComponent(searchTerm)}`);
+                        const data = await response.json();
+                        setUsers(data);
+                        setError(null);
+                    } catch (err) {
+                        setError('Помилка пошуку користувачів');
+                        console.error(err);
+                    } finally {
+                        setLoading(false);
+                    }
+                }, 300);
+                return () => clearTimeout(timer);
+            } else {
+                setUsers([]);
+            }
+        }, [searchTerm, isOpen]);
+
+        const handleAssign = async (user) => {
+            try {
+                const workplaceId = `329-${workplaceNumber}`;
+                const response = await fetch(`/api/classrooms/329/workplaces/${workplaceId}/assign/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user_id: user.id }),
+                });
+
+                if (response.ok) {
+                    onAssign();
+                    onClose();
+                    setSearchTerm('');
+                } else {
+                    const errorData = await response.json();
+                    setError(errorData.error || 'Помилка призначення');
+                }
+            } catch (err) {
+                setError('Помилка призначення користувача');
+                console.error(err);
+            }
+        };
+
+        if (!isOpen) return null;
+
+        return (
+            <div className="modal show" onClick={onClose}>
+                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3 className="modal-title">Призначити на Workplace {workplaceNumber}</h3>
+                        <button className="close-btn" onClick={onClose}>&times;</button>
+                    </div>
+
+                    {error && <div className="error-text">{error}</div>}
+
+                    <input
+                        type="text"
+                        className="search-input"
+                        placeholder="Введіть прізвище..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        autoFocus
+                    />
+
+                    <div className="user-list">
+                        {loading && <div className="loading-text">Пошук...</div>}
+                        {!loading && searchTerm.length < 2 && (
+                            <div className="loading-text">Введіть мінімум 2 символи</div>
+                        )}
+                        {!loading && users.length === 0 && searchTerm.length >= 2 && (
+                            <div className="loading-text">Користувачів не знайдено</div>
+                        )}
+                        {!loading && users.map((user, idx) => (
+                            <div
+                                key={idx}
+                                className="user-item"
+                                onClick={() => handleAssign(user)}
+                            >
+                                {user.display}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    function ConfirmDeleteModal({ isOpen, onClose, placement, onConfirm }) {
+        if (!isOpen || !placement) return null;
+
+        return (
+            <div className="modal show" onClick={onClose}>
+                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3 className="modal-title">Підтвердження видалення</h3>
+                        <button className="close-btn" onClick={onClose}>&times;</button>
+                    </div>
+
+                    <p style={{ color: 'var(--text-color)', marginBottom: '15px' }}>
+                        Ви впевнені, що хочете видалити призначення?
+                    </p>
+                    <p style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>
+                        {placement.user.last_name} {placement.user.first_name}
+                    </p>
+
+                    <div className="confirm-buttons">
+                        <button className="confirm-btn confirm-btn-no" onClick={onClose}>
+                            Скасувати
+                        </button>
+                        <button className="confirm-btn confirm-btn-yes" onClick={onConfirm}>
+                            Видалити
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    function ClassroomApp() {
+        const [classroomData, setClassroomData] = useState(null);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
+        const [lastUpdated, setLastUpdated] = useState(null);
+
+        // Filter state
+        const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+        const [lesson, setLesson] = useState(null); // Will be fetched from server
+        const [singles, setSingles] = useState(false);
+        const [autoUpdate, setAutoUpdate] = useState(true); // Auto-update lesson
+
+        // Modal state
+        const [modalOpen, setModalOpen] = useState(false);
+        const [selectedWorkplace, setSelectedWorkplace] = useState(null);
+        const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+        const [placementToDelete, setPlacementToDelete] = useState(null);
+
+        const REFRESH_INTERVAL = 5000; // 5 seconds
+
+        // Get current lesson from server on initial load
+        useEffect(() => {
+            const getCurrentLesson = async () => {
+                if (!autoUpdate) {
+                    // If auto-update is disabled, use fallback
+                    if (!lesson) setLesson('1');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/classrooms/329/');
+                    if (response.ok) {
+                        const data = await response.json();
+                        setLesson(data.lesson.toString());
+                    } else {
+                        setLesson('1'); // Fallback
+                    }
+                } catch (err) {
+                    console.error('Error fetching current lesson:', err);
+                    setLesson('1'); // Fallback
+                }
+            };
+            getCurrentLesson();
+        }, [autoUpdate]);
+
+        const fetchClassroomData = useCallback(async () => {
+            if (!lesson) return; // Don't fetch until lesson is initialized
+
+            try {
+                const params = new URLSearchParams({
+                    date: date,
+                    lesson: lesson,
+                    singles: singles ? 'on' : 'off'
+                });
+
+                const response = await fetch(`/api/classrooms/329/?${params}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                setClassroomData(data);
+                setLastUpdated(new Date());
+                setError(null);
+            } catch (err) {
+                setError(err.message);
+                console.error('Error fetching classroom data:', err);
+            } finally {
+                setLoading(false);
+            }
+        }, [date, lesson, singles]);
+
+        // Initial fetch and auto-refresh
+        useEffect(() => {
+            fetchClassroomData();
+            const interval = setInterval(fetchClassroomData, REFRESH_INTERVAL);
+            return () => clearInterval(interval);
+        }, [fetchClassroomData]);
+
+        const formatTime = (isoString) => {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+        };
+
+        const formatLastUpdated = () => {
+            if (!lastUpdated) return '';
+            return lastUpdated.toLocaleTimeString('uk-UA', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        };
+
+        const handleOpenModal = (workplaceNumber) => {
+            setSelectedWorkplace(workplaceNumber);
+            setModalOpen(true);
+        };
+
+        const handleCloseModal = () => {
+            setModalOpen(false);
+            setSelectedWorkplace(null);
+        };
+
+        const handleAssignSuccess = () => {
+            fetchClassroomData();
+        };
+
+        const handleDeleteClick = (placement) => {
+            setPlacementToDelete(placement);
+            setDeleteModalOpen(true);
+        };
+
+        const handleDeleteConfirm = async () => {
+            if (!placementToDelete) return;
+
+            try {
+                const response = await fetch(
+                    `/api/classrooms/329/workplaces/${placementToDelete.workplace_id}/?placement_id=${placementToDelete.id}`,
+                    { method: 'DELETE' }
+                );
+
+                if (response.ok) {
+                    fetchClassroomData();
+                    setDeleteModalOpen(false);
+                    setPlacementToDelete(null);
+                } else {
+                    const errorData = await response.json();
+                    alert('Помилка видалення: ' + (errorData.error || 'Невідома помилка'));
+                }
+            } catch (err) {
+                alert('Помилка видалення: ' + err.message);
+                console.error(err);
+            }
+        };
+
+        const handleDeleteCancel = () => {
+            setDeleteModalOpen(false);
+            setPlacementToDelete(null);
+        };
+
+        if (loading && !classroomData) {
+            return (
+                <div className="container mt-3">
+                    <div className="alert alert-info">Завантаження...</div>
+                </div>
+            );
+        }
+
+        if (error && !classroomData) {
+            return (
+                <div className="container mt-3">
+                    <div className="alert alert-danger">Помилка: {error}</div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="container mt-3">
+                <AssignmentModal
+                    isOpen={modalOpen}
+                    onClose={handleCloseModal}
+                    workplaceNumber={selectedWorkplace}
+                    onAssign={handleAssignSuccess}
+                />
+
+                <ConfirmDeleteModal
+                    isOpen={deleteModalOpen}
+                    onClose={handleDeleteCancel}
+                    placement={placementToDelete}
+                    onConfirm={handleDeleteConfirm}
+                />
+
+                {/* Filters */}
+                <div className="row mb-4 g-3">
+                    <div className="col-md-2">
+                        <label htmlFor="dateFilter" className="form-label">Обрати дату:</label>
+                        <input
+                            type="date"
+                            id="dateFilter"
+                            className="form-control"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                        />
+
+                        <label htmlFor="lessonFilter" className="form-label mt-2">Урок:</label>
+                        <select
+                            id="lessonFilter"
+                            className="form-select"
+                            value={lesson}
+                            onChange={(e) => setLesson(e.target.value)}
+                        >
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                                <option key={num} value={num}>{num} урок</option>
+                            ))}
+                        </select>
+
+                        <div className="form-check mt-2">
+                            <input
+                                type="checkbox"
+                                id="pairFilter"
+                                className="form-check-input"
+                                checked={singles}
+                                onChange={(e) => setSingles(e.target.checked)}
+                            />
+                            <label htmlFor="pairFilter" className="form-check-label">
+                                Одиночні уроки
+                            </label>
+                        </div>
+
+                        <div className="form-check mt-2">
+                            <input
+                                type="checkbox"
+                                id="autoUpdateFilter"
+                                className="form-check-input"
+                                checked={!autoUpdate}
+                                onChange={(e) => setAutoUpdate(!e.target.checked)}
+                            />
+                            <label htmlFor="autoUpdateFilter" className="form-check-label">
+                                Не оновлювати
+                            </label>
+                        </div>
+
+                        {lastUpdated && (
+                            <div className="mt-3 text-muted small">
+                                Оновлено: {formatLastUpdated()}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="col-md-7">
+                        <h1>Кабінет 329</h1>
+
+                        <div className="row">
+                            {/* Left column (workplaces 9-1) */}
+                            <div className="col-md-6">
+                                {classroomData?.workplaces_1?.map(workplace => (
+                                    <div key={workplace.number} className="card text-center border-success mt-2">
+                                        <div className="card-body pt-1 pb-1">
+                                            <h5 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0' }}>
+                                                <span>Workplace {workplace.number}</span>
+                                                <button
+                                                    className="assign-btn"
+                                                    onClick={() => handleOpenModal(workplace.number)}
+                                                    title="Додати студента"
+                                                    style={{ padding: '2px 6px', fontSize: '12px', marginLeft: '8px' }}
+                                                >
+                                                    ➕
+                                                </button>
+                                            </h5>
+                                            {workplace.placements.map(placement => (
+                                                <div key={placement.id} className="placement-row">
+                                                    <span>
+                                                        {placement.user.last_name} {placement.user.first_name}{' '}
+                                                        <span className="text-success">
+                                                            {formatTime(placement.created_at)}
+                                                        </span>
+                                                    </span>
+                                                    <button
+                                                        className="delete-btn"
+                                                        onClick={() => handleDeleteClick(placement)}
+                                                        title="Видалити призначення"
+                                                    >
+                                                        ❌
+                                                    </button>
+                                                    <br />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Right column (workplaces 10-18) */}
+                            <div className="col-md-6">
+                                {classroomData?.workplaces_2?.map(workplace => (
+                                    <div key={workplace.number} className="card text-center border-success mt-2">
+                                        <div className="card-body pt-1 pb-1">
+                                            <h5 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0' }}>
+                                                <span>Workplace {workplace.number}</span>
+                                                <button
+                                                    className="assign-btn"
+                                                    onClick={() => handleOpenModal(workplace.number)}
+                                                    title="Додати студента"
+                                                    style={{ padding: '2px 6px', fontSize: '12px', marginLeft: '8px' }}
+                                                >
+                                                    ➕
+                                                </button>
+                                            </h5>
+                                            {workplace.placements.map(placement => (
+                                                <div key={placement.id} className="placement-row">
+                                                    <span>
+                                                        {placement.user.last_name} {placement.user.first_name}{' '}
+                                                        <span className="text-success">
+                                                            {formatTime(placement.created_at)}
+                                                        </span>
+                                                    </span>
+                                                    <button
+                                                        className="delete-btn"
+                                                        onClick={() => handleDeleteClick(placement)}
+                                                        title="Видалити призначення"
+                                                    >
+                                                        ❌
+                                                    </button>
+                                                    <br />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="col-md-3">
+                        <div className="card text-center border-primary">
+                            <div className="card-body">
+                                <h5 className="card-title">Поточні фільтри</h5>
+                                <p className="card-text">
+                                    Уроки з {classroomData?.lesson_from} до {classroomData?.lesson_to}
+                                </p>
+                                <p>
+                                    {classroomData?.lesson_start && formatTime(classroomData.lesson_start)} -<br />
+                                    {classroomData?.lesson_end && formatTime(classroomData.lesson_end)}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="alert alert-primary mt-3">
+                            <strong>Користувачі у системі:</strong>{' '}
+                            <span id="studentsCount">{classroomData?.unique_users_count || 0}</span>
+                        </div>
+
+                        {/* User names list */}
+                        <div className="list-group mt-3">
+                            {classroomData?.usernames?.map((username, idx) => (
+                                <div key={idx} className="list-group-item list-group-item-action">
+                                    {username}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Render the app
+    const root = ReactDOM.createRoot(document.getElementById('classroom-root'));
+    root.render(<ClassroomApp />);
+    {% endverbatim %}
+</script>
+
+{% endblock %}
