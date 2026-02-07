@@ -21,6 +21,7 @@ def rotate_screenshots(dir_path, workplace=None):
     Implements smart retention policy:
     1. Keep 100 most recent files as is.
     2. For older files (index >= 100):
+       - Delete if older than 1 year.
        - Keep only one file every 15 mins (based on timestamp in filename).
        - Delete others (and their DB records).
        - If kept file > 50KB, compress/resize it.
