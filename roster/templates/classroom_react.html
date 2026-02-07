@@ -494,7 +494,7 @@
         if (isLost) statusClass = 'missing';
         else if (isStale) statusClass = 'stale';
 
-        const displayImage = !isLost;
+        const displayImage = true; // Always display image in modal, even if signal is lost
         const imageUrl = `/api/classrooms/329/workplaces/${workplace.number}/screenshots/${filenameToShow}/`;
 
         // Helper to scroll horizontal list
