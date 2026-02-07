@@ -391,26 +391,224 @@
         );
     }
 
-    function ScreenshotModal({ isOpen, onClose, workplace }) {
-        if (!isOpen || !workplace) return null;
+    function ScreenshotModal({ isOpen, onClose, workplaceId, classroomData }) {
+        const [history, setHistory] = useState([]);
+        const [selectedFilename, setSelectedFilename] = useState(null);
+        const [loadingHistory, setLoadingHistory] = useState(false);
+        const scrollContainerRef = React.useRef(null);
 
-        const imageUrl = `/api/classrooms/329/workplaces/${workplace.number}/screenshots/${workplace.last_screenshot_filename}/`;
-        const timestamp = new Date(workplace.last_screenshot_at).toLocaleString('uk-UA');
+        // Reset state when opening for a new workplace
+        useEffect(() => {
+            if (isOpen && workplaceId) {
+                setLoadingHistory(true);
+                fetch(`/api/classrooms/329/workplaces/${workplaceId}/screenshots/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        setHistory(data);
+                        // Default to latest if available
+                        if (data && data.length > 0) {
+                            setSelectedFilename(data[0]);
+                        }
+                    })
+                    .catch(err => console.error(err))
+                    .finally(() => setLoadingHistory(false));
+            } else {
+                setHistory([]);
+                setSelectedFilename(null);
+            }
+        }, [isOpen, workplaceId]);
+
+        // Auto-update handling: if we are viewing the latest image, switch to the new latest if it arrives
+        useEffect(() => {
+            if (!isOpen || !workplaceId || !classroomData) return;
+            const workplace = [...(classroomData.workplaces_1 || []), ...(classroomData.workplaces_2 || [])]
+                .find(w => w.number === workplaceId);
+
+            if (workplace && workplace.last_screenshot_filename) {
+                // If we were viewing the previous "latest", or nothing selected, update to new latest
+                // Logic: check if the new filename is present in history. If not, refresh history
+                if (history.length > 0 && history[0] !== workplace.last_screenshot_filename) {
+                    setHistory(prev => [workplace.last_screenshot_filename, ...prev]);
+                    if (selectedFilename === history[0]) {
+                        setSelectedFilename(workplace.last_screenshot_filename);
+                    }
+                }
+            }
+        }, [classroomData, isOpen, workplaceId]);
+
+
+        if (!isOpen || !workplaceId || !classroomData) return null;
+
+        // Find the workplace object from the fresh data
+        const workplace = [...(classroomData.workplaces_1 || []), ...(classroomData.workplaces_2 || [])]
+            .find(w => w.number === workplaceId);
+
+        if (!workplace) return null;
+
+        // Determine which file to show
+        const filenameToShow = selectedFilename || workplace.last_screenshot_filename;
+
+        // If still no filename (never uploaded), show NO SIGNAL
+        if (!filenameToShow) {
+            return (
+                <div className="modal show" onClick={onClose}>
+                    <div className="modal-content" style={{ maxWidth: '900px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">Скріншот Workplace {workplace.number}</h3>
+                            <button className="close-btn" onClick={onClose}>&times;</button>
+                        </div>
+                        <div className="text-center p-5 font-weight-bold text-danger">NO SIGNAL (No Data)</div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Parse timestamp from filename: YYYYMMDD_HHMMSS.png
+        // If it matches that pattern, use it. Otherwise fall back to last_screenshot_at if it's the latest file.
+        let timestamp;
+        const match = filenameToShow.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
+        if (match) {
+            timestamp = new Date(
+                parseInt(match[1]),
+                parseInt(match[2]) - 1,
+                parseInt(match[3]),
+                parseInt(match[4]),
+                parseInt(match[5]),
+                parseInt(match[6])
+            );
+        } else if (filenameToShow === workplace.last_screenshot_filename) {
+            timestamp = new Date(workplace.last_screenshot_at);
+        } else {
+            timestamp = new Date(); // Fallback
+        }
+
+
+        // Calculate status for modal (same logic as MonitorView)
+        // Only apply "Lost" logic if we are viewing the LATEST file
+        const isLatest = filenameToShow === workplace.last_screenshot_filename;
+        const age = new Date() - timestamp;
+        const isLost = isLatest && (age > 12 * 60 * 60 * 1000); // > 12 hours
+        const isStale = age > 15 * 60 * 1000;     // > 15 mins
+
+        let statusClass = 'active';
+        if (isLost) statusClass = 'missing';
+        else if (isStale) statusClass = 'stale';
+
+        const displayImage = !isLost;
+        const imageUrl = `/api/classrooms/329/workplaces/${workplace.number}/screenshots/${filenameToShow}/`;
+
+        // Helper to scroll horizontal list
+
+        // Helper to Format Time
+        const formatTimeShort = (date) => {
+            return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+        };
+
+        // Helper to calculate "time ago"
+        const getTimeAgo = (date) => {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            let interval = Math.floor(seconds / 31536000);
+            if (interval > 1) return interval + " years ago";
+            interval = Math.floor(seconds / 2592000);
+            if (interval > 1) return interval + " months ago";
+            interval = Math.floor(seconds / 86400);
+            if (interval > 1) return interval + " days ago";
+            interval = Math.floor(seconds / 3600);
+            if (interval > 1) return interval + " hours ago";
+            interval = Math.floor(seconds / 60);
+            if (interval > 1) return interval + " mins ago";
+            return Math.floor(seconds) + " seconds ago";
+        };
+
+        const timeAgo = getTimeAgo(timestamp);
 
         return (
             <div className="modal show" onClick={onClose}>
                 <div className="modal-content" style={{ maxWidth: '900px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
-                        <h3 className="modal-title">Скріншот Workplace {workplace.number}</h3>
+                        <h3 className="modal-title">
+                            <span className={`status-dot ${statusClass}`} style={{ marginRight: '10px' }}></span>
+                            Скріншот Workplace {workplace.number}
+                        </h3>
                         <button className="close-btn" onClick={onClose}>&times;</button>
                     </div>
-                    <div className="text-center mb-2 text-muted">{timestamp}</div>
-                    <div style={{ textAlign: 'center', overflow: 'auto', maxHeight: '80vh' }}>
-                        <img
-                            src={imageUrl}
-                            alt={`Screenshot ${workplace.number}`}
-                            style={{ maxWidth: '100%', maxHeight: '70vh', border: '1px solid #ccc' }}
-                        />
+                    <div className="text-center mb-2 text-muted">
+                        {timestamp.toLocaleString('uk-UA')} ({timeAgo})
+                    </div>
+                    <div style={{ textAlign: 'center', backgroundColor: '#000', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '10px' }}>
+                            {displayImage ? (
+                                <img
+                                    src={imageUrl}
+                                    alt={`Screenshot ${workplace.number}`}
+                                    style={{ maxWidth: '100%', maxHeight: '60vh', border: '1px solid #333' }}
+                                />
+                            ) : (
+                                <div style={{
+                                    color: '#ff0000',
+                                    fontWeight: 'bold',
+                                    fontSize: '1.5rem',
+                                }}>
+                                    NO SIGNAL
+                                </div>
+                            )}
+                        </div>
+
+                        {/* History Strip */}
+                        <div style={{
+                            height: '100px',
+                            borderTop: '1px solid #333',
+                            overflowX: 'auto',
+                            whiteSpace: 'nowrap',
+                            padding: '10px',
+                            textAlign: 'left',
+                            display: 'flex',
+                            gap: '10px'
+                        }} ref={scrollContainerRef}>
+                            {history.map(fname => {
+                                const m = fname.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
+                                if (!m) return null;
+                                const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
+                                const isSelected = fname === filenameToShow;
+
+                                return (
+                                    <div
+                                        key={fname}
+                                        onClick={() => setSelectedFilename(fname)}
+                                        style={{
+                                            display: 'inline-block',
+                                            cursor: 'pointer',
+                                            border: isSelected ? '2px solid var(--primary-color)' : '1px solid #444',
+                                            borderRadius: '4px',
+                                            overflow: 'hidden',
+                                            position: 'relative',
+                                            minWidth: '120px',
+                                            height: '100%',
+                                            opacity: isSelected ? 1 : 0.7
+                                        }}
+                                    >
+                                        <img
+                                            src={`/api/classrooms/329/workplaces/${workplace.number}/screenshots/${fname}/`}
+                                            alt={fname}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            background: 'rgba(0,0,0,0.7)',
+                                            color: '#fff',
+                                            fontSize: '10px',
+                                            padding: '2px',
+                                            textAlign: 'center'
+                                        }}>
+                                            {formatTimeShort(d)}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -441,13 +639,29 @@
                         const hasScreenshot = !!wp.last_screenshot_filename;
                         const lastUpdate = wp.last_screenshot_at ? new Date(wp.last_screenshot_at) : null;
 
-                        // Check if stale (> 15 mins)
-                        const isStale = lastUpdate && (new Date() - lastUpdate > 15 * 60 * 1000);
+                        let statusClass = 'missing'; // Default to missing (Red)
+                        let isLost = true;
+                        let isStale = false;
 
-                        let statusClass = 'missing';
-                        if (hasScreenshot) statusClass = isStale ? 'stale' : 'active';
+                        if (hasScreenshot && lastUpdate) {
+                            const age = new Date() - lastUpdate;
+                            isLost = age > 12 * 60 * 60 * 1000; // > 12 hours
+                            isStale = age > 15 * 60 * 1000;     // > 15 mins
 
-                        const imageUrl = hasScreenshot
+                            if (isLost) {
+                                statusClass = 'missing';
+                            } else if (isStale) {
+                                statusClass = 'stale';
+                            } else {
+                                statusClass = 'active';
+                            }
+                        }
+
+                        // Determine if we show the image
+                        // We show image only if we have one AND it's not "lost" (>12h)
+                        const showImage = hasScreenshot && !isLost;
+
+                        const imageUrl = showImage
                             ? `/api/classrooms/329/workplaces/${wp.number}/screenshots/${wp.last_screenshot_filename}/?t=${lastUpdate ? lastUpdate.getTime() : Date.now()}`
                             : null;
 
@@ -458,14 +672,14 @@
                                 onClick={() => hasScreenshot && onScreenshotClick(wp)}
                                 title={hasScreenshot ? `Updated: ${lastUpdate.toLocaleTimeString('uk-UA')}` : 'No Signal'}
                             >
-                                {imageUrl ? (
+                                {showImage ? (
                                     <img
                                         src={imageUrl}
                                         className={`monitor-screen ${isStale ? 'stale' : ''}`}
                                         alt={`WP ${wp.number}`}
                                     />
                                 ) : (
-                                    <div className="monitor-screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333' }}>
+                                    <div className="monitor-screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: statusClass === 'missing' ? '#ff0000' : '#333', fontWeight: 'bold' }}>
                                         NO SIGNAL
                                     </div>
                                 )}
@@ -504,7 +718,7 @@
         const [deleteModalOpen, setDeleteModalOpen] = useState(false);
         const [placementToDelete, setPlacementToDelete] = useState(null);
         const [screenshotModalOpen, setScreenshotModalOpen] = useState(false);
-        const [screenshotWorkplace, setScreenshotWorkplace] = useState(null);
+        const [screenshotWorkplaceId, setScreenshotWorkplaceId] = useState(null);
 
         const REFRESH_INTERVAL = 5000; // 5 seconds
 
@@ -590,13 +804,13 @@
         }, [fetchClassroomData]);
 
         const handleScreenshotClick = (workplace) => {
-            setScreenshotWorkplace(workplace);
+            setScreenshotWorkplaceId(workplace.number);
             setScreenshotModalOpen(true);
         };
 
         const handleCloseScreenshotModal = () => {
             setScreenshotModalOpen(false);
-            setScreenshotWorkplace(null);
+            setScreenshotWorkplaceId(null);
         };
 
         const handleViewModeToggle = () => {
@@ -764,7 +978,8 @@
                 <ScreenshotModal
                     isOpen={screenshotModalOpen}
                     onClose={handleCloseScreenshotModal}
-                    workplace={screenshotWorkplace}
+                    workplaceId={screenshotWorkplaceId}
+                    classroomData={classroomData}
                 />
 
                 {/* Filters */}

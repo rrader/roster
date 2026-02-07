@@ -387,3 +387,35 @@ def serve_screenshot_329(request, workplace_id, filename):
         raise Http404("Screenshot not found")
         
     return FileResponse(open(file_path, 'rb'), content_type='image/png')
+
+
+@require_http_methods(["GET"])
+def list_screenshots_329(request, workplace_id):
+    """
+    GET /api/classrooms/329/workplaces/<workplace_id>/screenshots/
+    Returns list of available screenshots for a workplace
+    """
+    import os
+    import glob
+    
+    # Basic validation of workplace_id
+    if not re.match(r'^[\w-]+$', workplace_id):
+        return JsonResponse({'error': 'Invalid workplace ID'}, status=400)
+    
+    dir_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', workplace_id)
+    
+    if not os.path.exists(dir_path):
+        return JsonResponse([])
+        
+    try:
+        # Get all png files
+        files = glob.glob(os.path.join(dir_path, "*.png"))
+        # Sort by modification time (newest first)
+        files.sort(key=os.path.getmtime, reverse=True)
+        
+        # Extract just filenames
+        filenames = [os.path.basename(f) for f in files]
+        
+        return JsonResponse(filenames, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
