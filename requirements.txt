@@ -8,3 +8,4 @@ numpy
 django-allauth
 PyJWT
 cryptography
+Pillow

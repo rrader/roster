@@ -404,10 +404,16 @@
                 fetch(`/api/classrooms/329/workplaces/${workplaceId}/screenshots/`)
                     .then(res => res.json())
                     .then(data => {
-                        setHistory(data);
+                        // Data is now array of objects: {filename, created_at, user_name}
+                        // Or strings if API outdated (backward compat check)
+                        const normalized = data.map(item => {
+                            if (typeof item === 'string') return { filename: item, created_at: null, user_name: null };
+                            return item;
+                        });
+                        setHistory(normalized);
                         // Default to latest if available
-                        if (data && data.length > 0) {
-                            setSelectedFilename(data[0]);
+                        if (normalized && normalized.length > 0) {
+                            setSelectedFilename(normalized[0].filename);
                         }
                     })
                     .catch(err => console.error(err))
@@ -427,9 +433,18 @@
             if (workplace && workplace.last_screenshot_filename) {
                 // If we were viewing the previous "latest", or nothing selected, update to new latest
                 // Logic: check if the new filename is present in history. If not, refresh history
-                if (history.length > 0 && history[0] !== workplace.last_screenshot_filename) {
-                    setHistory(prev => [workplace.last_screenshot_filename, ...prev]);
-                    if (selectedFilename === history[0]) {
+                const latestInHistory = history.length > 0 ? history[0].filename : null;
+
+                if (latestInHistory !== workplace.last_screenshot_filename) {
+                    // Add new item to top of list
+                    const newItem = {
+                        filename: workplace.last_screenshot_filename,
+                        created_at: workplace.last_screenshot_at,
+                        user_name: null // will be missing until refresh
+                    };
+
+                    setHistory(prev => [newItem, ...prev]);
+                    if (selectedFilename === latestInHistory) {
                         setSelectedFilename(workplace.last_screenshot_filename);
                     }
                 }
@@ -447,6 +462,10 @@
 
         // Determine which file to show
         const filenameToShow = selectedFilename || workplace.last_screenshot_filename;
+
+        // Find metadata for selected file
+        const selectedMeta = history.find(h => h.filename === filenameToShow) || {};
+        const userName = selectedMeta.user_name;
 
         // If still no filename (never uploaded), show NO SIGNAL
         if (!filenameToShow) {
@@ -466,20 +485,24 @@
         // Parse timestamp from filename: YYYYMMDD_HHMMSS.png
         // If it matches that pattern, use it. Otherwise fall back to last_screenshot_at if it's the latest file.
         let timestamp;
-        const match = filenameToShow.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
-        if (match) {
-            timestamp = new Date(
-                parseInt(match[1]),
-                parseInt(match[2]) - 1,
-                parseInt(match[3]),
-                parseInt(match[4]),
-                parseInt(match[5]),
-                parseInt(match[6])
-            );
-        } else if (filenameToShow === workplace.last_screenshot_filename) {
-            timestamp = new Date(workplace.last_screenshot_at);
+        if (selectedMeta.created_at) {
+            timestamp = new Date(selectedMeta.created_at);
         } else {
-            timestamp = new Date(); // Fallback
+            const match = filenameToShow.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
+            if (match) {
+                timestamp = new Date(
+                    parseInt(match[1]),
+                    parseInt(match[2]) - 1,
+                    parseInt(match[3]),
+                    parseInt(match[4]),
+                    parseInt(match[5]),
+                    parseInt(match[6])
+                );
+            } else if (filenameToShow === workplace.last_screenshot_filename) {
+                timestamp = new Date(workplace.last_screenshot_at);
+            } else {
+                timestamp = new Date(); // Fallback
+            }
         }
 
 
@@ -529,6 +552,7 @@
                         <h3 className="modal-title">
                             <span className={`status-dot ${statusClass}`} style={{ marginRight: '10px' }}></span>
                             Скріншот Workplace {workplace.number}
+                            {userName && <span className="text-muted ml-3" style={{ fontSize: '0.8em' }}>👤 {userName}</span>}
                         </h3>
                         <button className="close-btn" onClick={onClose}>&times;</button>
                     </div>
@@ -565,10 +589,17 @@
                             display: 'flex',
                             gap: '10px'
                         }} ref={scrollContainerRef}>
-                            {history.map(fname => {
-                                const m = fname.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
-                                if (!m) return null;
-                                const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
+                            {history.map(item => {
+                                const fname = item.filename;
+                                let d;
+                                if (item.created_at) {
+                                    d = new Date(item.created_at);
+                                } else {
+                                    const m = fname.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
+                                    if (!m) return null;
+                                    d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
+                                }
+
                                 const isSelected = fname === filenameToShow;
 
                                 return (
@@ -586,6 +617,7 @@
                                             height: '100%',
                                             opacity: isSelected ? 1 : 0.7
                                         }}
+                                        title={item.user_name || 'No user info'}
                                     >
                                         <img
                                             src={`/api/classrooms/329/workplaces/${workplace.number}/screenshots/${fname}/`}
@@ -604,6 +636,7 @@
                                             textAlign: 'center'
                                         }}>
                                             {formatTimeShort(d)}
+                                            {item.user_name && <div style={{ fontSize: '9px', color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{item.user_name}</div>}
                                         </div>
                                     </div>
                                 );
@@ -727,7 +760,7 @@
             const getCurrentLesson = async () => {
                 if (!autoUpdate) {
                     // If auto-update is disabled, use fallback
-                    if (!lesson) setLesson('0');
+                    if (!lesson) setLesson('1');
                     return;
                 }
 
@@ -735,13 +768,21 @@
                     const response = await fetch('/api/classrooms/329/');
                     if (response.ok) {
                         const data = await response.json();
-                        setLesson(data.lesson.toString());
+                        let lessonNum = data.lesson; // 1-based
+
+                        // Initial load is usually paired mode (singles default false)
+                        if (!singles && lessonNum % 2 === 0) {
+                            lessonNum = lessonNum - 1;
+                        }
+
+                        const lessonIndex = Math.max(1, lessonNum);
+                        setLesson(lessonIndex.toString());
                     } else {
-                        setLesson('0'); // Fallback
+                        setLesson('1'); // Fallback
                     }
                 } catch (err) {
                     console.error('Error fetching current lesson:', err);
-                    setLesson('0'); // Fallback
+                    setLesson('1'); // Fallback
                 }
             };
             getCurrentLesson();
@@ -752,9 +793,9 @@
             if (!lesson) return;
 
             const lessonNum = parseInt(lesson);
-            if (!singles && lessonNum % 2 === 1) {
-                // Switching to paired mode and current lesson is odd (2,4,6,8)
-                // Round down to the paired lesson (0,2,4,6)
+            if (!singles && lessonNum % 2 === 0) {
+                // Switching to paired mode and current lesson is even (2,4,6,8)
+                // Round down to the paired lesson (1,3,5,7)
                 setLesson((lessonNum - 1).toString());
             }
         }, [singles]);
@@ -780,11 +821,23 @@
                 setError(null);
 
                 // Auto-update lesson if enabled and lesson has changed
-                if (autoUpdate && data.lesson && data.lesson.toString() !== lesson) {
-                    setLesson(data.lesson.toString());
+                if (autoUpdate && data.lesson !== undefined) {
+                    let lessonNum = data.lesson; // 1-based
+
+                    // Sort of redundant now as backend does logic, but good for safety
+                    // If in paired mode (default), pairs start at odd numbers (1, 3, 5...)
+                    // So if we get an even number (2, 4...), round down to the pair start
+                    if (!singles && lessonNum % 2 === 0) {
+                        lessonNum = lessonNum - 1;
+                    }
+
+                    // Use 1-based index directly
+                    if (lessonNum.toString() !== lesson) {
+                        setLesson(lessonNum.toString());
+                    }
                 }
 
-                // Update screenshots state from server
+                // Update screenshots state from server 
                 if (data.screenshots_enabled !== undefined) {
                     setScreenshotsEnabled(data.screenshots_enabled);
                 }
@@ -1003,11 +1056,11 @@
                             onChange={(e) => setLesson(e.target.value)}
                         >
                             {singles
-                                ? [0, 1, 2, 3, 4, 5, 6, 7].map(num => (
-                                    <option key={num} value={num}>{num + 1} урок</option>
+                                ? [1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                                    <option key={num} value={num}>{num} урок</option>
                                 ))
-                                : [0, 2, 4, 6].map(num => (
-                                    <option key={num} value={num}>{num + 1}-{num + 2} уроки</option>
+                                : [1, 3, 5, 7].map(num => (
+                                    <option key={num} value={num}>{num}-{num + 1} уроки</option>
                                 ))
                             }
                         </select>

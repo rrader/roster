@@ -14,6 +14,108 @@ from roster.features import check_group_constraints
 from roster.views import current_lesson, sort_ukrainian
 
 
+
+# Helper for screenshot rotation
+def rotate_screenshots(dir_path, workplace=None):
+    """
+    Implements smart retention policy:
+    1. Keep 100 most recent files as is.
+    2. For older files (index >= 100):
+       - Keep only one file every 15 mins (based on timestamp in filename).
+       - Delete others (and their DB records).
+       - If kept file > 50KB, compress/resize it.
+    """
+    import glob
+    import os
+    import re
+    import datetime
+    from PIL import Image
+    from roster.models import WorkplaceScreenshot
+
+    try:
+        files = glob.glob(os.path.join(dir_path, "*.png"))
+        # Sort by modification time, newest first
+        files.sort(key=os.path.getmtime, reverse=True)
+        
+        # files[0] is newest
+        
+        # We only care if we have more than 100 files
+        if len(files) <= 100:
+            return
+
+        # Indices 0..99 are kept safe (recent)
+        
+        # Process older files
+        last_kept_time = None
+        
+        for i in range(100, len(files)):
+            file_path = files[i]
+            basename = os.path.basename(file_path)
+            
+            # Policy: Keep one every 15 minutes of "file timestamp"
+            # Filename format: YYYYMMDD_HHMMSS.png
+            should_delete = False
+            
+            try:
+                # Parse time from filename
+                match = re.match(r'^(\d{8}_(\d{4}))\d{2}\.png$', basename)
+                if not match:
+                     # Unknown format, maybe keep it to be safe? Or delete?
+                     # Let's delete to be clean if it's old
+                     should_delete = True
+                else:
+                    ts_str = basename.split('.')[0]
+                    dt = datetime.datetime.strptime(ts_str, "%Y%m%d_%H%M%S")
+                    
+                    if dt < datetime.datetime.now() - datetime.timedelta(days=365):
+                        should_delete = True
+                    elif last_kept_time is None:
+                        # This is the newest of the "old" batch. Keep it.
+                        last_kept_time = dt
+                    else:
+                        # Calculate difference
+                        diff = abs((last_kept_time - dt).total_seconds())
+                        if diff < 15 * 60: # 15 minutes
+                            should_delete = True
+                        else:
+                            # Keep it
+                            last_kept_time = dt
+                            
+            except ValueError:
+                 should_delete = True
+            
+            if should_delete:
+                try:
+                    os.remove(file_path)
+                    # Sync with DB
+                    if workplace:
+                        WorkplaceScreenshot.objects.filter(
+                            workplace=workplace, 
+                            screenshot_filename=basename
+                        ).delete()
+                except OSError as e:
+                    print(f"Error deleting {file_path}: {e}")
+                continue
+            
+            # It's a keeper check compression
+            try:
+                size = os.path.getsize(file_path)
+                if size > 50 * 1024: # 50KB
+                    # Compress
+                    with Image.open(file_path) as img:
+                        # As requested: "make smaller dimension"
+                        w, h = img.size
+                        new_w = int(w * 0.5)
+                        new_h = int(h * 0.5)
+                        
+                        resized = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                        resized.save(file_path, optimize=True, quality=85)
+            except Exception as e:
+                print(f"Error compressing {file_path}: {e}")
+
+    except Exception as e:
+        print(f"Error in rotate_screenshots: {e}")
+
 def serialize_placement(placement):
     """Serialize a WorkplaceUserPlacement object to JSON-friendly dict"""
     return {
@@ -46,29 +148,40 @@ def get_classroom_329(request):
         return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
     
     # Calculate lesson offset
-    # Frontend sends 0-based index where 0 = "1st lesson"
+    # Frontend sends 1-based index where 1 = "1st lesson"
     # Settings has 0-th lesson (8:00), so "1st lesson" is at key 1
-    # We need to shift everything by +1
     
-    # Default: current_lesson returns settings key
-    default_lesson_fe = current_lesson(datetime.datetime.now())
-    if default_lesson_fe < 0: default_lesson_fe = 0
+    # Default: current_lesson returns settings key (1-based)
+    curr_lesson_1based = current_lesson(datetime.datetime.now())
+    if curr_lesson_1based < 1: curr_lesson_1based = 1 # Safety
+    
+    if singles:
+        # Map 1-based directly
+        default_lesson_fe = curr_lesson_1based
+    else:
+        # Paired mode: Snap to pair start (1, 3, 5...)
+        # 1,2 -> 1 ('1-2')
+        # 3,4 -> 3 ('3-4')
+        # 5,6 -> 5 ('5-6')
+        default_lesson_fe = ((curr_lesson_1based - 1) // 2) * 2 + 1
+
+    if default_lesson_fe < 1: default_lesson_fe = 1
     
     lesson = int(request.GET.get('lesson', default_lesson_fe))
     
-    if lesson < 0 or lesson > 7:
-        return JsonResponse({'error': 'Lesson must be between 0 and 7'}, status=400)
+    if lesson < 1 or lesson > 8:
+        return JsonResponse({'error': 'Lesson must be between 1 and 8'}, status=400)
     
     # Calculate lesson range (keys in settings)
-    base_idx = lesson + 1
+    base_idx = lesson
     
     if singles:
         lesson_from = base_idx
         lesson_to = base_idx
     else:
         # For paired lessons: 
-        # FE 0 ("1-2") -> keys 1, 2
-        # FE 6 ("7-8") -> keys 7, 8
+        # FE 1 ("1-2") -> keys 1, 2
+        # FE 3 ("3-4") -> keys 3, 4
         lesson_from = base_idx
         lesson_to = base_idx + 1
     
@@ -104,17 +217,27 @@ def get_classroom_329(request):
     
     # Format workplace groups
     from roster.models import Workplace
+    from django.db.models import OuterRef, Subquery
+    from roster.models import WorkplaceScreenshot
     
-    # Pre-fetch all workplaces info
-    workplaces_info = {w.workplace_number: w for w in Workplace.objects.all()}
+    # Pre-fetch all workplaces info with latest screenshot
+    newest = WorkplaceScreenshot.objects.filter(
+        workplace=OuterRef('pk')
+    ).order_by('-created_at')
+    
+    workplaces_qs = Workplace.objects.annotate(
+        latest_filename=Subquery(newest.values('screenshot_filename')[:1]),
+        latest_at=Subquery(newest.values('created_at')[:1])
+    )
+    workplaces_info = {w.workplace_number: w for w in workplaces_qs}
 
     def get_wp_data(i):
         w = workplaces_info.get(i)
         return {
             'number': i,
             'placements': [serialize_placement(p) for p in classroom[i]],
-            'last_screenshot_filename': w.last_screenshot_filename if w else None,
-            'last_screenshot_at': w.last_screenshot_at.isoformat() if w and w.last_screenshot_at else None
+            'last_screenshot_filename': w.latest_filename if w else None,
+            'last_screenshot_at': w.latest_at.isoformat() if w and w.latest_at else None
         }
 
     g1 = []
@@ -334,28 +457,47 @@ def upload_screenshot_329(request, workplace_id):
     except Exception as e:
         return JsonResponse({'error': f'Failed to write file: {str(e)}'}, status=500)
         
-    # Validation logic: keep only last 100 screenshots
-    try:
-        files = glob.glob(os.path.join(dir_path, "*.png"))
-        files.sort(key=os.path.getmtime)
-        
-        if len(files) > 100:
-            for f in files[:-100]:
-                os.remove(f)
-    except Exception as e:
-        # Don't fail the request if rotation fails, but maybe log it
-        print(f"Error rotating screenshots: {e}")
-
-    # Update database only if we have a valid numbered workplace (1-18)
+    # Resolve workplace
+    workplace = None
     try:
         workplace_num = int(workplace_dir_name)
         if 1 <= workplace_num <= 18:
             workplace, _ = Workplace.objects.get_or_create(workplace_number=workplace_num)
-            workplace.last_screenshot_at = datetime.datetime.now()
-            workplace.last_screenshot_filename = filename
-            workplace.save()
     except ValueError:
-        pass # Not a numbered workplace, just skip DB update
+        pass
+
+    # Validation logic: Smart Retention
+    rotate_screenshots(dir_path, workplace)
+
+    # Update database
+    if workplace:
+        # --- NEW: Create History Record ---
+        from roster.models import WorkplaceScreenshot, WorkplaceUserPlacement
+        
+        # Find active user
+        # Logic: Last placement created before now for this workplace
+        active_user = None
+        try:
+            # Get the latest placement
+            # Search for both 'N' and '329-N' formats
+            from django.db.models import Q
+            wp_str = str(workplace.workplace_number)
+            last_placement = WorkplaceUserPlacement.objects.filter(
+                Q(workplace_id=wp_str) | Q(workplace_id=f"329-{wp_str}")
+            ).order_by('-created_at').first()
+            
+            if last_placement:
+                # Optional: Check if placement is recent
+                active_user = last_placement.user
+        except Exception as e:
+            print(f"Error finding user: {e}")
+        
+        WorkplaceScreenshot.objects.create(
+            workplace=workplace,
+            screenshot_filename=filename,
+            user=active_user
+        )
+        # ----------------------------------
     
     return JsonResponse({
         'success': True,
@@ -397,11 +539,41 @@ def list_screenshots_329(request, workplace_id):
     """
     import os
     import glob
+    from roster.models import WorkplaceScreenshot, Workplace
     
     # Basic validation of workplace_id
     if not re.match(r'^[\w-]+$', workplace_id):
         return JsonResponse({'error': 'Invalid workplace ID'}, status=400)
     
+    # Try to fetch from DB first (WorkplaceScreenshot)
+    try:
+        workplace_num = int(workplace_id)
+        if 1 <= workplace_num <= 18:
+            try:
+                workplace = Workplace.objects.get(workplace_number=workplace_num)
+                screenshots = WorkplaceScreenshot.objects.filter(workplace=workplace).select_related('user').order_by('-created_at')
+                
+                data = []
+                for s in screenshots:
+                    user_name = None
+                    if s.user:
+                        user_name = f"{s.user.last_name} {s.user.first_name}"
+                        
+                    data.append({
+                        'filename': s.screenshot_filename,
+                        'created_at': s.created_at.isoformat(),
+                        'user_name': user_name
+                    })
+                
+                # If we have DB records, return them
+                if data:
+                    return JsonResponse(data, safe=False)
+            except Workplace.DoesNotExist:
+                pass
+    except ValueError:
+        pass
+    
+    # Fallback to file system if no DB records found (backward compatibility)
     dir_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', workplace_id)
     
     if not os.path.exists(dir_path):
@@ -413,9 +585,19 @@ def list_screenshots_329(request, workplace_id):
         # Sort by modification time (newest first)
         files.sort(key=os.path.getmtime, reverse=True)
         
-        # Extract just filenames
-        filenames = [os.path.basename(f) for f in files]
+        # Extract just filenames and return as objects (mocking the new structure)
+        data = []
+        for f in files:
+            filename = os.path.basename(f)
+            # Try to get timestamp from filename or mtime
+            timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(f)).isoformat()
+            
+            data.append({
+                'filename': filename,
+                'created_at': timestamp,
+                'user_name': None # No user info for legacy files
+            })
         
-        return JsonResponse(filenames, safe=False)
+        return JsonResponse(data, safe=False)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

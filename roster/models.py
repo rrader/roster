@@ -53,10 +53,8 @@ class StudentGroupFeature(models.Model):
 
 
 class Workplace(models.Model):
-    """Model which represents a specific workplace and its last screenshot"""
+    """Model which represents a specific workplace"""
     workplace_number = models.IntegerField(unique=True, verbose_name="Номер робочого місця")
-    last_screenshot_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата останнього скріншоту")
-    last_screenshot_filename = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ім'я файлу скріншоту")
     
     class Meta:
         verbose_name = "Робоче місце"
@@ -64,6 +62,22 @@ class Workplace(models.Model):
     
     def __str__(self):
         return f"W-{self.workplace_number}"
+
+
+class WorkplaceScreenshot(models.Model):
+    """Model which represents a historical screenshot"""
+    workplace = models.ForeignKey(Workplace, on_delete=models.CASCADE, related_name='screenshots')
+    screenshot_filename = models.CharField(max_length=255, verbose_name="Ім'я файлу")
+    user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='screenshots')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата створення")
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Скріншот"
+        verbose_name_plural = "Скріншоти"
+    
+    def __str__(self):
+        return f"Screenshot {self.workplace} - {self.created_at}"
 
 
 class Classroom(models.Model):
