@@ -257,6 +257,87 @@
         margin-bottom: 10px;
         width: 100%;
     }
+
+    /* Hover Info Styles */
+    .monitor-hover-info {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        padding: 10px;
+        text-align: center;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    .monitor-card:hover .monitor-hover-info {
+        opacity: 1;
+    }
+
+    .hover-label {
+        color: var(--primary-color);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        margin-top: 5px;
+    }
+
+    .hover-value {
+        font-size: 0.85rem;
+        word-break: break-all;
+    }
+
+    /* Single Screenshot Detail Layout */
+    .screenshot-details-layout {
+        display: flex;
+        gap: 20px;
+        text-align: left;
+    }
+
+    .screenshot-main-view {
+        flex: 3;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .screenshot-sidebar {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        max-width: 250px;
+    }
+
+    .sidebar-info-block {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sidebar-info-label {
+        color: var(--primary-color);
+        font-weight: bold;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    .sidebar-info-value {
+        color: #fff;
+        font-size: 0.95rem;
+        word-break: break-all;
+    }
 </style>
 
 {% verbatim %}
@@ -404,10 +485,16 @@
                 fetch(`/api/classrooms/329/workplaces/${workplaceId}/screenshots/`)
                     .then(res => res.json())
                     .then(data => {
-                        // Data is now array of objects: {filename, created_at, user_name}
+                        // Data is now array of objects: {filename, created_at, user_name, os_username, reported_workplace}
                         // Or strings if API outdated (backward compat check)
                         const normalized = data.map(item => {
-                            if (typeof item === 'string') return { filename: item, created_at: null, user_name: null };
+                            if (typeof item === 'string') return {
+                                filename: item,
+                                created_at: null,
+                                user_name: null,
+                                os_username: null,
+                                reported_workplace: null
+                            };
                             return item;
                         });
                         setHistory(normalized);
@@ -551,97 +638,118 @@
                     <div className="modal-header">
                         <h3 className="modal-title">
                             <span className={`status-dot ${statusClass}`} style={{ marginRight: '10px' }}></span>
-                            Скріншот Workplace {workplace.number}
-                            {userName && <span className="text-muted ml-3" style={{ fontSize: '0.8em' }}>👤 {userName}</span>}
+                            Скріншот {workplace.number}
                         </h3>
                         <button className="close-btn" onClick={onClose}>&times;</button>
                     </div>
-                    <div className="text-center mb-2 text-muted">
-                        {timestamp.toLocaleString('uk-UA')} ({timeAgo})
-                    </div>
-                    <div style={{ textAlign: 'center', backgroundColor: '#000', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '10px' }}>
-                            {displayImage ? (
-                                <img
-                                    src={imageUrl}
-                                    alt={`Screenshot ${workplace.number}`}
-                                    style={{ maxWidth: '100%', maxHeight: '60vh', border: '1px solid #333' }}
-                                />
-                            ) : (
-                                <div style={{
-                                    color: '#ff0000',
-                                    fontWeight: 'bold',
-                                    fontSize: '1.5rem',
-                                }}>
-                                    NO SIGNAL
-                                </div>
-                            )}
-                        </div>
-
-                        {/* History Strip */}
-                        <div style={{
-                            height: '100px',
-                            borderTop: '1px solid #333',
-                            overflowX: 'auto',
-                            whiteSpace: 'nowrap',
-                            padding: '10px',
-                            textAlign: 'left',
-                            display: 'flex',
-                            gap: '10px'
-                        }} ref={scrollContainerRef}>
-                            {history.map(item => {
-                                const fname = item.filename;
-                                let d;
-                                if (item.created_at) {
-                                    d = new Date(item.created_at);
-                                } else {
-                                    const m = fname.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
-                                    if (!m) return null;
-                                    d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
-                                }
-
-                                const isSelected = fname === filenameToShow;
-
-                                return (
-                                    <div
-                                        key={fname}
-                                        onClick={() => setSelectedFilename(fname)}
-                                        style={{
-                                            display: 'inline-block',
-                                            cursor: 'pointer',
-                                            border: isSelected ? '2px solid var(--primary-color)' : '1px solid #444',
-                                            borderRadius: '4px',
-                                            overflow: 'hidden',
-                                            position: 'relative',
-                                            minWidth: '120px',
-                                            height: '100%',
-                                            opacity: isSelected ? 1 : 0.7
-                                        }}
-                                        title={item.user_name || 'No user info'}
-                                    >
+                    <div className="screenshot-details-layout">
+                        <div className="screenshot-main-view">
+                            <div className="text-center mb-2 text-muted">
+                                {timestamp.toLocaleString('uk-UA')} ({timeAgo})
+                            </div>
+                            <div style={{ textAlign: 'center', backgroundColor: '#000', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '10px' }}>
+                                    {displayImage ? (
                                         <img
-                                            src={`/api/classrooms/329/workplaces/${workplace.number}/screenshots/${fname}/`}
-                                            alt={fname}
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            src={imageUrl}
+                                            alt={`Screenshot ${workplace.number}`}
+                                            style={{ maxWidth: '100%', maxHeight: '60vh', border: '1px solid #333' }}
                                         />
+                                    ) : (
                                         <div style={{
-                                            position: 'absolute',
-                                            bottom: 0,
-                                            left: 0,
-                                            right: 0,
-                                            background: 'rgba(0,0,0,0.7)',
-                                            color: '#fff',
-                                            fontSize: '10px',
-                                            padding: '2px',
-                                            textAlign: 'center'
+                                            color: '#ff0000',
+                                            fontWeight: 'bold',
+                                            fontSize: '1.5rem',
                                         }}>
-                                            {formatTimeShort(d)}
-                                            {item.user_name && <div style={{ fontSize: '9px', color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{item.user_name}</div>}
+                                            NO SIGNAL
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    )}
+                                </div>
+                            </div>
                         </div>
+
+                        <div className="screenshot-sidebar">
+                            <div className="sidebar-info-block">
+                                <span className="sidebar-info-label">Workplace</span>
+                                <span className="sidebar-info-value">{selectedMeta.reported_workplace || workplace.last_reported_workplace || workplace.number}</span>
+                            </div>
+                            <div className="sidebar-info-block">
+                                <span className="sidebar-info-label">OS User</span>
+                                <span className="sidebar-info-value">{selectedMeta.os_username || workplace.last_os_username || 'Unknown'}</span>
+                            </div>
+                            <div className="sidebar-info-block">
+                                <span className="sidebar-info-label">Student</span>
+                                <span className="sidebar-info-value">{userName || (workplace.placements && workplace.placements.length > 0 ? `${workplace.placements[0].user.last_name} ${workplace.placements[0].user.first_name}` : 'Unknown')}</span>
+                            </div>
+                            <div className="sidebar-info-block">
+                                <span className="sidebar-info-label">Captured</span>
+                                <span className="sidebar-info-value">{timestamp.toLocaleString('uk-UA')}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{
+                        height: '100px',
+                        borderTop: '1px solid #333',
+                        overflowX: 'auto',
+                        whiteSpace: 'nowrap',
+                        padding: '10px',
+                        textAlign: 'left',
+                        display: 'flex',
+                        gap: '10px'
+                    }} ref={scrollContainerRef}>
+                        {history.map(item => {
+                            const fname = item.filename;
+                            let d;
+                            if (item.created_at) {
+                                d = new Date(item.created_at);
+                            } else {
+                                const m = fname.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
+                                if (!m) return null;
+                                d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
+                            }
+
+                            const isSelected = fname === filenameToShow;
+
+                            return (
+                                <div
+                                    key={fname}
+                                    onClick={() => setSelectedFilename(fname)}
+                                    style={{
+                                        display: 'inline-block',
+                                        cursor: 'pointer',
+                                        border: isSelected ? '2px solid var(--primary-color)' : '1px solid #444',
+                                        borderRadius: '4px',
+                                        overflow: 'hidden',
+                                        position: 'relative',
+                                        minWidth: '120px',
+                                        height: '100%',
+                                        opacity: isSelected ? 1 : 0.7
+                                    }}
+                                    title={item.user_name || 'No user info'}
+                                >
+                                    <img
+                                        src={`/api/classrooms/329/workplaces/${workplace.number}/screenshots/${fname}/`}
+                                        alt={fname}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        background: 'rgba(0,0,0,0.7)',
+                                        color: '#fff',
+                                        fontSize: '10px',
+                                        padding: '2px',
+                                        textAlign: 'center'
+                                    }}>
+                                        {formatTimeShort(d)}
+                                        {item.user_name && <div style={{ fontSize: '9px', color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{item.user_name}</div>}
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -714,6 +822,14 @@
                                 ) : (
                                     <div className="monitor-screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: statusClass === 'missing' ? '#ff0000' : '#333', fontWeight: 'bold' }}>
                                         NO SIGNAL
+                                    </div>
+                                )}
+                                {hasScreenshot && (
+                                    <div className="monitor-hover-info">
+                                        <div className="hover-label">Workspace</div>
+                                        <div className="hover-value">{wp.last_reported_workplace || wp.number}</div>
+                                        <div className="hover-label">OS User</div>
+                                        <div className="hover-value">{wp.last_os_username || 'Unknown'}</div>
                                     </div>
                                 )}
                                 <div className="monitor-overlay">

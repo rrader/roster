@@ -70,6 +70,8 @@ class WorkplaceScreenshot(models.Model):
     screenshot_filename = models.CharField(max_length=255, verbose_name="Ім'я файлу")
     user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='screenshots')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата створення")
+    reported_workplace = models.CharField(max_length=255, null=True, blank=True, verbose_name="Робоче місце (з запиту)")
+    os_username = models.CharField(max_length=255, null=True, blank=True, verbose_name="Користувач OS")
 
     class Meta:
         ordering = ['-created_at']

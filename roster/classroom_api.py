@@ -228,7 +228,9 @@ def get_classroom_329(request):
     
     workplaces_qs = Workplace.objects.annotate(
         latest_filename=Subquery(newest.values('screenshot_filename')[:1]),
-        latest_at=Subquery(newest.values('created_at')[:1])
+        latest_at=Subquery(newest.values('created_at')[:1]),
+        latest_os_username=Subquery(newest.values('os_username')[:1]),
+        latest_reported_workplace=Subquery(newest.values('reported_workplace')[:1])
     )
     workplaces_info = {w.workplace_number: w for w in workplaces_qs}
 
@@ -238,7 +240,9 @@ def get_classroom_329(request):
             'number': i,
             'placements': [serialize_placement(p) for p in classroom[i]],
             'last_screenshot_filename': w.latest_filename if w else None,
-            'last_screenshot_at': w.latest_at.isoformat() if w and w.latest_at else None
+            'last_screenshot_at': w.latest_at.isoformat() if w and w.latest_at else None,
+            'last_os_username': w.latest_os_username if w else None,
+            'last_reported_workplace': w.latest_reported_workplace if w else None
         }
 
     g1 = []
@@ -442,6 +446,9 @@ def upload_screenshot_329(request, workplace_id):
     if file.name == '':
         return JsonResponse({'error': 'No selected file'}, status=400)
     
+    # Get username from client (Windows user)
+    os_username = request.POST.get('username')
+    
     # Create directory if not exists
     dir_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', str(workplace_dir_name))
     os.makedirs(dir_path, exist_ok=True)
@@ -496,7 +503,9 @@ def upload_screenshot_329(request, workplace_id):
         WorkplaceScreenshot.objects.create(
             workplace=workplace,
             screenshot_filename=filename,
-            user=active_user
+            user=active_user,
+            reported_workplace=workplace_id,
+            os_username=os_username
         )
         # ----------------------------------
     
@@ -563,7 +572,9 @@ def list_screenshots_329(request, workplace_id):
                     data.append({
                         'filename': s.screenshot_filename,
                         'created_at': s.created_at.isoformat(),
-                        'user_name': user_name
+                        'user_name': user_name,
+                        'os_username': s.os_username,
+                        'reported_workplace': s.reported_workplace
                     })
                 
                 # If we have DB records, return them
