@@ -274,6 +274,7 @@ def get_classroom_329(request):
         'usernames': sort_ukrainian(usernames),
         'last_updated': datetime.datetime.now().isoformat(),
         'screenshots_enabled': classroom.screenshots_enabled,
+        'screenshot_interval': classroom.screenshot_interval,
     })
 
 
@@ -379,26 +380,33 @@ def manage_screenshots_329(request):
         return JsonResponse({
             'classroom_id': '329',
             'screenshots_enabled': classroom.screenshots_enabled,
+            'screenshot_interval': classroom.screenshot_interval,
         })
     
     elif request.method == 'PATCH':
         try:
             data = json.loads(request.body)
             screenshots_enabled = data.get('screenshots_enabled')
+            screenshot_interval = data.get('screenshot_interval')
             
-            if screenshots_enabled is None:
-                return JsonResponse({'error': 'screenshots_enabled is required'}, status=400)
+            if screenshots_enabled is not None:
+                if not isinstance(screenshots_enabled, bool):
+                    return JsonResponse({'error': 'screenshots_enabled must be a boolean'}, status=400)
+                classroom.screenshots_enabled = screenshots_enabled
             
-            if not isinstance(screenshots_enabled, bool):
-                return JsonResponse({'error': 'screenshots_enabled must be a boolean'}, status=400)
+            if screenshot_interval is not None:
+                try:
+                    classroom.screenshot_interval = int(screenshot_interval)
+                except (ValueError, TypeError):
+                    return JsonResponse({'error': 'screenshot_interval must be an integer'}, status=400)
             
-            classroom.screenshots_enabled = screenshots_enabled
             classroom.save()
             
             return JsonResponse({
                 'success': True,
                 'classroom_id': '329',
                 'screenshots_enabled': classroom.screenshots_enabled,
+                'screenshot_interval': classroom.screenshot_interval,
             })
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
@@ -414,10 +422,24 @@ def screenshots_status_329(request):
     """
     classroom, _ = Classroom.objects.get_or_create(
         classroom_id='329',
-        defaults={'screenshots_enabled': True}
+        defaults={'screenshots_enabled': True, 'screenshot_interval': 60}
     )
     
     return HttpResponse("1" if classroom.screenshots_enabled else "0", content_type="text/plain")
+
+
+@require_http_methods(["GET"])
+def screenshots_interval_329(request):
+    """
+    GET /api/classrooms/329/screenshots/interval/
+    Simple endpoint for PowerShell scripts - returns the interval in seconds
+    """
+    classroom, _ = Classroom.objects.get_or_create(
+        classroom_id='329',
+        defaults={'screenshots_enabled': True, 'screenshot_interval': 60}
+    )
+    
+    return HttpResponse(str(classroom.screenshot_interval), content_type="text/plain")
 
 
 @csrf_exempt

@@ -859,6 +859,7 @@
         const [singles, setSingles] = useState(false);
         const [autoUpdate, setAutoUpdate] = useState(true); // Auto-update lesson
         const [screenshotsEnabled, setScreenshotsEnabled] = useState(true); // Screenshots toggle
+        const [screenshotInterval, setScreenshotInterval] = useState(60); // Screenshot interval (seconds)
         const [viewMode, setViewMode] = useState('list'); // 'list' or 'monitor'
 
         // Modal state
@@ -956,6 +957,9 @@
                 // Update screenshots state from server 
                 if (data.screenshots_enabled !== undefined) {
                     setScreenshotsEnabled(data.screenshots_enabled);
+                }
+                if (data.screenshot_interval !== undefined) {
+                    setScreenshotInterval(data.screenshot_interval);
                 }
             } catch (err) {
                 setError(err.message);
@@ -1069,13 +1073,31 @@
                     setScreenshotsEnabled(enabled);
                 } else {
                     console.error('Failed to update screenshots setting');
-                    // Revert on error
                     setScreenshotsEnabled(!enabled);
                 }
             } catch (err) {
                 console.error('Error updating screenshots setting:', err);
-                // Revert on error
                 setScreenshotsEnabled(!enabled);
+            }
+        };
+
+        const handleScreenshotIntervalChange = async (interval) => {
+            try {
+                const response = await fetch('/api/classrooms/329/screenshots/', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ screenshot_interval: parseInt(interval) }),
+                });
+
+                if (response.ok) {
+                    setScreenshotInterval(parseInt(interval));
+                } else {
+                    console.error('Failed to update screenshot interval');
+                }
+            } catch (err) {
+                console.error('Error updating screenshot interval:', err);
             }
         };
 
@@ -1218,6 +1240,21 @@
                             <label htmlFor="screenshotsFilter" className="form-check-label">
                                 Скріншоти увімкнені
                             </label>
+                        </div>
+
+                        <div className="mt-2">
+                            <label htmlFor="intervalFilter" className="form-label mb-1" style={{ fontSize: '0.85rem' }}>Частота скріншотів:</label>
+                            <select
+                                id="intervalFilter"
+                                className="form-select form-select-sm"
+                                value={screenshotInterval}
+                                onChange={(e) => handleScreenshotIntervalChange(e.target.value)}
+                            >
+                                <option value="10">10 секунд</option>
+                                <option value="30">30 секунд</option>
+                                <option value="60">1 хвилина</option>
+                                <option value="600">10 хвилин</option>
+                            </select>
                         </div>
 
                         <hr />

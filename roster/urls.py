@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/classrooms/329/workplaces/<str:workplace_id>/screenshots/<str:filename>/", classroom_api.serve_screenshot_329, name='api_serve_screenshot_329'),
     path("api/classrooms/329/screenshots/", classroom_api.manage_screenshots_329, name='api_screenshots_329'),
     path("api/classrooms/329/screenshots/status/", classroom_api.screenshots_status_329, name='api_screenshots_status_329'),
+    path("api/classrooms/329/screenshots/interval/", classroom_api.screenshots_interval_329, name='api_screenshots_interval_329'),
     
     # Student Groups URLs
     path("groups/login/", views.groups_login, name='groups_login'),

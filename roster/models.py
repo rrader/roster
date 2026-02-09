@@ -86,6 +86,7 @@ class Classroom(models.Model):
     """Model for storing classroom-specific settings"""
     classroom_id = models.CharField(max_length=50, primary_key=True, verbose_name="ID кабінету")
     screenshots_enabled = models.BooleanField(default=True, verbose_name="Скріншоти увімкнені")
+    screenshot_interval = models.IntegerField(default=60, verbose_name="Інтервал скріншотів (сек)")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата створення")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата оновлення")
     
