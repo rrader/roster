@@ -705,8 +705,10 @@
         if (!isOpen || !workplaceId || !classroomData) return null;
 
         // Find the workplace object from the fresh data
-        const workplace = [...(classroomData.workplaces_1 || []), ...(classroomData.workplaces_2 || [])]
-            .find(w => w.number === workplaceId);
+        const allWps = [...(classroomData.workplaces_1 || []), ...(classroomData.workplaces_2 || [])];
+        if (classroomData.teacher_workplace) allWps.push(classroomData.teacher_workplace);
+
+        const workplace = allWps.find(w => w.number === workplaceId);
 
         if (!workplace) return null;
 
