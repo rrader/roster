@@ -690,7 +690,10 @@
                     const newItem = {
                         filename: workplace.last_screenshot_filename,
                         created_at: workplace.last_screenshot_at,
-                        user_name: null // will be missing until refresh
+                        user_name: null, // will remain null until refresh or fetched specifically
+                        os_username: workplace.last_os_username,
+                        reported_workplace: workplace.last_reported_workplace,
+                        window_titles: workplace.last_window_titles || []
                     };
 
                     setHistory(prev => [newItem, ...prev]);

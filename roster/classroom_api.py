@@ -474,13 +474,35 @@ def upload_screenshot_329(request, workplace_id):
     if file.name == '':
         return JsonResponse({'error': 'No selected file'}, status=400)
     
-    # Get username from client (Windows user)
-    os_username = request.POST.get('username')
-    window_titles_raw = request.POST.get('window_titles', '[]')
-    try:
-        window_titles = json.loads(window_titles_raw)
-    except (json.JSONDecodeError, TypeError):
-        window_titles = []
+    # Get metadata from client
+    # Try POST first, then GET (some clients mix them)
+    os_username = request.POST.get('username') or request.GET.get('username')
+    
+    window_titles = []
+    # Check window_titles in POST and then GET
+    raw_titles = request.POST.get('window_titles') or request.GET.get('window_titles')
+    
+    if raw_titles:
+        try:
+            # 1. Try JSON parsing (expected from script)
+            parsed = json.loads(raw_titles)
+            if isinstance(parsed, list):
+                window_titles = parsed
+            else:
+                window_titles = [str(parsed)]
+        except (json.JSONDecodeError, TypeError):
+            # 2. If not JSON, maybe it's just a string or multiple fields?
+            # getlist will capture multiple fields if sent that way
+            list_val = request.POST.getlist('window_titles') or request.GET.getlist('window_titles')
+            if len(list_val) > 1:
+                window_titles = list_val
+            else:
+                # 3. Last fallback: treat as single string or comma-separated?
+                # For now, just single string
+                window_titles = [raw_titles]
+    elif 'window_titles' in request.POST or 'window_titles' in request.GET:
+        # Field exists but raw_titles was empty/None? Check getlist
+        window_titles = request.POST.getlist('window_titles') or request.GET.getlist('window_titles')
     
     # Create directory if not exists
     dir_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', str(workplace_dir_name))
