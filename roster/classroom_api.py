@@ -491,15 +491,22 @@ def upload_screenshot_329(request, workplace_id):
             else:
                 window_titles = [str(parsed)]
         except (json.JSONDecodeError, TypeError):
-            # 2. If not JSON, maybe it's just a string or multiple fields?
-            # getlist will capture multiple fields if sent that way
-            list_val = request.POST.getlist('window_titles') or request.GET.getlist('window_titles')
-            if len(list_val) > 1:
-                window_titles = list_val
+            # 2. If not JSON, maybe it's a "list-like" string: [A, B, C]
+            if raw_titles.startswith('[') and raw_titles.endswith(']'):
+                inner = raw_titles[1:-1]
+                # Simple split by comma. Be aware this might split titles containing commas, 
+                # but it's better than showing brackets.
+                window_titles = [t.strip() for t in inner.split(',') if t.strip()]
+                # Clean up any accidental quotes if someone sent ["A", "B"] but with bad escaping
+                window_titles = [t.strip('"').strip("'") for t in window_titles]
             else:
-                # 3. Last fallback: treat as single string or comma-separated?
-                # For now, just single string
-                window_titles = [raw_titles]
+                # 3. Check for multiple fields
+                list_val = request.POST.getlist('window_titles') or request.GET.getlist('window_titles')
+                if len(list_val) > 1:
+                    window_titles = list_val
+                else:
+                    # 4. Fallback: treat as single string
+                    window_titles = [raw_titles]
     elif 'window_titles' in request.POST or 'window_titles' in request.GET:
         # Field exists but raw_titles was empty/None? Check getlist
         window_titles = request.POST.getlist('window_titles') or request.GET.getlist('window_titles')

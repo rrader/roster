@@ -867,17 +867,34 @@
                                     {(() => {
                                         // Priority: 1. selectedMeta.window_titles, 2. If it is the latest, workplace.last_window_titles
                                         let titles = selectedMeta.window_titles;
-                                        if (titles === undefined && isLatest) {
+                                        if ((titles === undefined || titles === null) && isLatest) {
                                             titles = workplace.last_window_titles;
                                         }
 
-                                        if (titles && titles.length > 0) {
-                                            return titles.map((title, idx) => (
+                                        // Final normalization: if we have a list/string that looks like [A, B, C], split it
+                                        let finalTitles = [];
+                                        if (Array.isArray(titles)) {
+                                            titles.forEach(t => {
+                                                if (typeof t === 'string' && t.startsWith('[') && t.endsWith(']')) {
+                                                    const inner = t.substring(1, t.length - 1);
+                                                    const splitted = inner.split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
+                                                    finalTitles.push(...splitted);
+                                                } else {
+                                                    finalTitles.push(t);
+                                                }
+                                            });
+                                        } else if (typeof titles === 'string' && titles.startsWith('[') && titles.endsWith(']')) {
+                                            const inner = titles.substring(1, titles.length - 1);
+                                            finalTitles = inner.split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
+                                        }
+
+                                        if (finalTitles.length > 0) {
+                                            return finalTitles.map((title, idx) => (
                                                 <div key={idx} style={{
                                                     fontSize: '0.8rem',
                                                     color: '#ccc',
                                                     padding: '3px 0',
-                                                    borderBottom: idx === titles.length - 1 ? 'none' : '1px solid #222',
+                                                    borderBottom: idx === finalTitles.length - 1 ? 'none' : '1px solid #222',
                                                     whiteSpace: 'nowrap',
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis'
