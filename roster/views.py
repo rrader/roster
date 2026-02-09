@@ -220,11 +220,22 @@ def index(request):
 
 
 def search_users_ajax(request):
-    surname = request.GET.get('surname')
-    data = {}
+    query = request.GET.get('surname')
+    data = []
 
-    if surname:
-        users = User.objects.filter(last_name__icontains=surname.capitalize())
+    if query:
+        from django.db.models import Q, Value
+        from django.db.models.functions import Concat
+        
+        users = User.objects.annotate(
+            full_name=Concat('last_name', Value(' '), 'first_name'),
+            full_name_rev=Concat('first_name', Value(' '), 'last_name')
+        ).filter(
+            Q(last_name__icontains=query) |
+            Q(first_name__icontains=query) |
+            Q(full_name__icontains=query) |
+            Q(full_name_rev__icontains=query)
+        ).distinct()
         data = [user_json(user) for user in users]
 
     return JsonResponse(data, safe=False)

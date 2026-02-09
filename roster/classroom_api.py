@@ -635,3 +635,77 @@ def list_screenshots_329(request, workplace_id):
         return JsonResponse(data, safe=False)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@require_http_methods(["GET"])
+def screenshot_dates_329(request):
+    """
+    GET /api/classrooms/329/screenshots/dates/
+    Returns a list of dates (YYYY-MM-DD) that have screenshots
+    """
+    from roster.models import WorkplaceScreenshot
+    from django.db.models.functions import TruncDate
+    
+    dates = WorkplaceScreenshot.objects.annotate(
+        date=TruncDate('created_at')
+    ).values_list('date', flat=True).distinct().order_by('-date')
+    
+    return JsonResponse(list(dates), safe=False)
+
+
+@require_http_methods(["GET"])
+def search_screenshots_329(request):
+    """
+    GET /api/classrooms/329/screenshots/search/?q=<query>&date=<YYYY-MM-DD>
+    Search for screenshots across all workplaces by OS username or student name
+    With optional date filter
+    """
+    query = request.GET.get('q', '')
+    date_str = request.GET.get('date', '')
+    
+    from roster.models import WorkplaceScreenshot
+    from django.db.models import Q, Value
+    from django.db.models.functions import Concat, TruncDate
+
+    qs = WorkplaceScreenshot.objects.annotate(
+        full_name=Concat('user__last_name', Value(' '), 'user__first_name'),
+        full_name_rev=Concat('user__first_name', Value(' '), 'user__last_name')
+    )
+
+    if query:
+        qs = qs.filter(
+            Q(os_username__icontains=query) |
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(user__username__icontains=query) |
+            Q(full_name__icontains=query) |
+            Q(full_name_rev__icontains=query)
+        )
+    
+    if date_str:
+        try:
+            target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            qs = qs.annotate(c_date=TruncDate('created_at')).filter(c_date=target_date)
+        except ValueError:
+            pass
+
+    if not query and not date_str:
+        return JsonResponse([], safe=False)
+
+    screenshots = qs.select_related('user', 'workplace').order_by('-created_at')[:100]
+
+    data = []
+    for s in screenshots:
+        user_name = None
+        if s.user:
+            user_name = f"{s.user.last_name} {s.user.first_name}"
+            
+        data.append({
+            'filename': s.screenshot_filename,
+            'created_at': s.created_at.isoformat(),
+            'user_name': user_name,
+            'os_username': s.os_username,
+            'reported_workplace': s.reported_workplace,
+            'workplace_number': s.workplace.workplace_number
+        })
+
+    return JsonResponse(data, safe=False)

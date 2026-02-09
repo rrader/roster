@@ -338,6 +338,167 @@
         font-size: 0.95rem;
         word-break: break-all;
     }
+
+    /* Search View Styles */
+    .search-results-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .search-card {
+        background: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .search-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--primary-color);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .search-card-img {
+        width: 100%;
+        aspect-ratio: 16/9;
+        object-fit: cover;
+        background: #000;
+    }
+
+    .search-card-info {
+        padding: 10px;
+        font-size: 0.85rem;
+    }
+
+    .search-card-user {
+        font-weight: bold;
+        color: var(--primary-color);
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .search-card-meta {
+        color: #aaa;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .search-input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .search-input-group input {
+        flex: 1;
+        padding: 10px 15px;
+        background: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 5px;
+        color: #fff;
+        font-size: 1rem;
+    }
+
+    .search-input-group input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 5px var(--primary-color);
+    }
+
+    /* Calendar Styles */
+    .search-calendar-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        background: #1a1a1a;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #333;
+        margin-bottom: 20px;
+    }
+
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+    }
+
+    .calendar-day-label {
+        text-align: center;
+        font-size: 0.75rem;
+        color: #666;
+        font-weight: bold;
+        padding-bottom: 5px;
+    }
+
+    .calendar-day {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #222;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        position: relative;
+    }
+
+    .calendar-day:hover {
+        background: #333;
+        border-color: #444;
+    }
+
+    .calendar-day.selected {
+        background: var(--primary-color);
+        color: white;
+        font-weight: bold;
+    }
+
+    .calendar-day.has-screenshots::after {
+        content: '';
+        position: absolute;
+        bottom: 4px;
+        width: 4px;
+        height: 4px;
+        background: var(--primary-color);
+        border-radius: 50%;
+    }
+
+    .calendar-day.selected.has-screenshots::after {
+        background: white;
+    }
+
+    .calendar-day.other-month {
+        opacity: 0.2;
+        pointer-events: none;
+    }
+
+    .search-layout {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 20px;
+    }
+
+    .search-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
 </style>
 
 {% verbatim %}
@@ -472,7 +633,7 @@
         );
     }
 
-    function ScreenshotModal({ isOpen, onClose, workplaceId, classroomData }) {
+    function ScreenshotModal({ isOpen, onClose, workplaceId, classroomData, initialFilename }) {
         const [history, setHistory] = useState([]);
         const [selectedFilename, setSelectedFilename] = useState(null);
         const [loadingHistory, setLoadingHistory] = useState(false);
@@ -498,8 +659,10 @@
                             return item;
                         });
                         setHistory(normalized);
-                        // Default to latest if available
-                        if (normalized && normalized.length > 0) {
+                        // Default to initialFilename if provided, else latest
+                        if (initialFilename) {
+                            setSelectedFilename(initialFilename);
+                        } else if (normalized && normalized.length > 0) {
                             setSelectedFilename(normalized[0].filename);
                         }
                     })
@@ -847,6 +1010,183 @@
         );
     }
 
+    function Calendar({ selectedDate, onDateSelect, availableDates }) {
+        const [viewDate, setViewDate] = useState(new Date());
+
+        const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+        const startDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth();
+
+        const days = [];
+        const totalDays = daysInMonth(year, month);
+        const startDay = (startDayOfMonth(year, month) + 6) % 7; // Adjust to Monday start
+
+        // Month name in Ukrainian
+        const monthNames = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+            "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
+
+        // Fill previous month padding
+        for (let i = 0; i < startDay; i++) {
+            days.push({ day: '', otherMonth: true });
+        }
+
+        // Current month days
+        for (let i = 1; i <= totalDays; i++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            days.push({
+                day: i,
+                dateStr,
+                selected: selectedDate === dateStr,
+                hasScreenshots: availableDates.includes(dateStr)
+            });
+        }
+
+        const nextMonth = () => setViewDate(new Date(year, month + 1));
+        const prevMonth = () => setViewDate(new Date(year, month - 1));
+
+        return (
+            <div className="search-calendar-container">
+                <div className="calendar-header">
+                    <button className="btn btn-sm btn-outline-secondary" onClick={prevMonth}>&lt;</button>
+                    <strong>{monthNames[month]} {year}</strong>
+                    <button className="btn btn-sm btn-outline-secondary" onClick={nextMonth}>&gt;</button>
+                </div>
+                <div className="calendar-grid">
+                    {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'].map(d => (
+                        <div key={d} className="calendar-day-label">{d}</div>
+                    ))}
+                    {days.map((d, i) => (
+                        <div
+                            key={i}
+                            className={`calendar-day ${d.otherMonth ? 'other-month' : ''} ${d.selected ? 'selected' : ''} ${d.hasScreenshots ? 'has-screenshots' : ''}`}
+                            onClick={() => d.day && onDateSelect(d.dateStr)}
+                        >
+                            {d.day}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    function HistorySearchView({ onScreenshotClick }) {
+        const [query, setQuery] = useState('');
+        const [selectedDate, setSelectedDate] = useState(null);
+        const [results, setResults] = useState([]);
+        const [loading, setLoading] = useState(false);
+        const [availableDates, setAvailableDates] = useState([]);
+
+        // Load available dates on mount
+        useEffect(() => {
+            fetch('/api/classrooms/329/screenshots/dates/')
+                .then(res => res.json())
+                .then(data => setAvailableDates(data))
+                .catch(err => console.error('Error fetching dates:', err));
+        }, []);
+
+        const handleSearch = useCallback(async (q = query, d = selectedDate) => {
+            if (!q && !d) return;
+            setLoading(true);
+            try {
+                const params = new URLSearchParams();
+                if (q) params.append('q', q);
+                if (d) params.append('date', d);
+
+                const response = await fetch(`/api/classrooms/329/screenshots/search/?${params}`);
+                const data = await response.json();
+                setResults(data);
+            } catch (err) {
+                console.error('Search error:', err);
+            } finally {
+                setLoading(false);
+            }
+        }, [query, selectedDate]);
+
+        // Auto-search when date is selected
+        useEffect(() => {
+            if (selectedDate) handleSearch(query, selectedDate);
+        }, [selectedDate]);
+
+        const handleKeyPress = (e) => {
+            if (e.key === 'Enter') handleSearch();
+        };
+
+        return (
+            <div className="search-view-container">
+                <h3 className="text-center mb-4">Пошук скріншотів по історії</h3>
+
+                <div className="search-layout">
+                    <div className="search-controls">
+                        <div className="search-input-group" style={{ marginBottom: 0 }}>
+                            <input
+                                type="text"
+                                placeholder="OS user / Студент..."
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyPress={handleKeyPress}
+                                autoFocus
+                            />
+                        </div>
+                        <Calendar
+                            selectedDate={selectedDate}
+                            onDateSelect={(d) => setSelectedDate(d === selectedDate ? null : d)}
+                            availableDates={availableDates}
+                        />
+                        <button className="btn btn-primary w-100" onClick={() => handleSearch()} disabled={loading}>
+                            {loading ? 'Пошук...' : 'Знайти'}
+                        </button>
+                        {selectedDate && (
+                            <button className="btn btn-outline-secondary w-100 mt-2" onClick={() => {
+                                setSelectedDate(null);
+                                setResults([]);
+                            }}>
+                                Скинути фільтри
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="search-results-content">
+                        {results.length > 0 ? (
+                            <div className="search-results-grid">
+                                {results.map((item, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="search-card"
+                                        onClick={() => onScreenshotClick({
+                                            number: item.workplace_number,
+                                            last_screenshot_filename: item.filename
+                                        }, item.filename)}
+                                    >
+                                        <img
+                                            src={`/api/classrooms/329/workplaces/${item.workplace_number}/screenshots/${item.filename}/`}
+                                            className="search-card-img"
+                                            alt="Screenshot"
+                                        />
+                                        <div className="search-card-info">
+                                            <div className="search-card-user">
+                                                {item.user_name || 'Anonymous'} ({item.os_username || 'unknown'})
+                                            </div>
+                                            <div className="search-card-meta">
+                                                <span>W-{item.workplace_number}</span>
+                                                <span>{new Date(item.created_at).toLocaleString('uk-UA')}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : !loading && (query || selectedDate) ? (
+                            <div className="text-center text-muted mt-5">Нічого не знайдено</div>
+                        ) : (
+                            <div className="text-center text-muted mt-5">Виберіть дату або введіть ім'я для пошуку</div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     function ClassroomApp() {
         const [classroomData, setClassroomData] = useState(null);
         const [loading, setLoading] = useState(true);
@@ -869,6 +1209,7 @@
         const [placementToDelete, setPlacementToDelete] = useState(null);
         const [screenshotModalOpen, setScreenshotModalOpen] = useState(false);
         const [screenshotWorkplaceId, setScreenshotWorkplaceId] = useState(null);
+        const [initialScreenshotFilename, setInitialScreenshotFilename] = useState(null);
 
         const REFRESH_INTERVAL = 5000; // 5 seconds
 
@@ -976,14 +1317,16 @@
             return () => clearInterval(interval);
         }, [fetchClassroomData]);
 
-        const handleScreenshotClick = (workplace) => {
+        const handleScreenshotClick = (workplace, initialFilename = null) => {
             setScreenshotWorkplaceId(workplace.number);
+            setInitialScreenshotFilename(initialFilename);
             setScreenshotModalOpen(true);
         };
 
         const handleCloseScreenshotModal = () => {
             setScreenshotModalOpen(false);
             setScreenshotWorkplaceId(null);
+            setInitialScreenshotFilename(null);
         };
 
         const handleViewModeToggle = () => {
@@ -1171,6 +1514,7 @@
                     onClose={handleCloseScreenshotModal}
                     workplaceId={screenshotWorkplaceId}
                     classroomData={classroomData}
+                    initialFilename={initialScreenshotFilename}
                 />
 
                 {/* Filters */}
@@ -1261,9 +1605,16 @@
 
                         <button
                             className={`btn ${viewMode === 'monitor' ? 'btn-primary' : 'btn-outline-primary'} view-toggle-btn`}
-                            onClick={handleViewModeToggle}
+                            onClick={() => setViewMode(viewMode === 'monitor' ? 'list' : 'monitor')}
                         >
                             {viewMode === 'monitor' ? '📋 Список' : '📺 Моніторинг камер'}
+                        </button>
+
+                        <button
+                            className={`btn ${viewMode === 'search' ? 'btn-primary' : 'btn-outline-primary'} view-toggle-btn`}
+                            onClick={() => setViewMode(viewMode === 'search' ? 'list' : 'search')}
+                        >
+                            {viewMode === 'search' ? '📋 Список' : '🔍 Пошук скріншотів'}
                         </button>
 
                         {lastUpdated && (
@@ -1278,6 +1629,10 @@
                             <MonitorView
                                 workplaces={getAllWorkplaces()}
                                 onScreenshotClick={handleScreenshotClick}
+                            />
+                        ) : viewMode === 'search' ? (
+                            <HistorySearchView
+                                onScreenshotClick={(item) => handleScreenshotClick({ number: item.workplace_number }, item.filename)}
                             />
                         ) : (
                             <>
