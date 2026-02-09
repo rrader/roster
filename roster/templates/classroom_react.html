@@ -848,6 +848,36 @@
                                 <span className="sidebar-info-label">Captured</span>
                                 <span className="sidebar-info-value">{timestamp.toLocaleString('uk-UA')}</span>
                             </div>
+                            <div className="sidebar-info-block" style={{ flex: 1, minHeight: 0 }}>
+                                <span className="sidebar-info-label">Open Windows</span>
+                                <div style={{
+                                    maxHeight: '180px',
+                                    overflowY: 'auto',
+                                    background: 'rgba(0,0,0,0.2)',
+                                    borderRadius: '4px',
+                                    padding: '5px',
+                                    marginTop: '5px',
+                                    border: '1px solid #333'
+                                }}>
+                                    {((selectedMeta.window_titles || workplace.last_window_titles || [])).length > 0 ? (
+                                        (selectedMeta.window_titles || workplace.last_window_titles || []).map((title, idx) => (
+                                            <div key={idx} style={{
+                                                fontSize: '0.8rem',
+                                                color: '#ccc',
+                                                padding: '3px 0',
+                                                borderBottom: idx === (selectedMeta.window_titles || workplace.last_window_titles || []).length - 1 ? 'none' : '1px solid #222',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis'
+                                            }} title={title}>
+                                                • {title}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div style={{ fontSize: '0.8rem', color: '#666', fontStyle: 'italic' }}>No data available</div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -927,7 +957,7 @@
         const allWorkplaces = [];
         const existingMap = new Map(sortedWorkplaces.map(w => [w.number, w]));
 
-        for (let i = 1; i <= 18; i++) {
+        for (let i = 1; i <= 19; i++) {
             if (existingMap.has(i)) {
                 allWorkplaces.push(existingMap.get(i));
             } else {
@@ -998,7 +1028,7 @@
                                 <div className="monitor-overlay">
                                     <span>
                                         <span className={`status-dot ${statusClass}`}></span>
-                                        W-{wp.number}
+                                        {wp.number === 19 ? 'TEACHER (W-19)' : `W-${wp.number}`}
                                     </span>
                                     {lastUpdate && <span>{lastUpdate.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}</span>}
                                 </div>
@@ -1076,6 +1106,7 @@
         const [selectedDate, setSelectedDate] = useState(null);
         const [results, setResults] = useState([]);
         const [loading, setLoading] = useState(false);
+        const [showDeleted, setShowDeleted] = useState(false);
         const [availableDates, setAvailableDates] = useState([]);
 
         // Load available dates on mount
@@ -1086,13 +1117,14 @@
                 .catch(err => console.error('Error fetching dates:', err));
         }, []);
 
-        const handleSearch = useCallback(async (q = query, d = selectedDate) => {
-            if (!q && !d) return;
+        const handleSearch = useCallback(async (q = query, d = selectedDate, sd = showDeleted) => {
+            if (!q && !d && !sd) return;
             setLoading(true);
             try {
                 const params = new URLSearchParams();
                 if (q) params.append('q', q);
                 if (d) params.append('date', d);
+                if (sd) params.append('show_deleted', 'on');
 
                 const response = await fetch(`/api/classrooms/329/screenshots/search/?${params}`);
                 const data = await response.json();
@@ -1102,12 +1134,12 @@
             } finally {
                 setLoading(false);
             }
-        }, [query, selectedDate]);
+        }, [query, selectedDate, showDeleted]);
 
-        // Auto-search when date is selected
+        // Auto-search when date or showDeleted is changed
         useEffect(() => {
-            if (selectedDate) handleSearch(query, selectedDate);
-        }, [selectedDate]);
+            if (selectedDate || showDeleted) handleSearch(query, selectedDate, showDeleted);
+        }, [selectedDate, showDeleted]);
 
         const handleKeyPress = (e) => {
             if (e.key === 'Enter') handleSearch();
@@ -1134,6 +1166,18 @@
                             onDateSelect={(d) => setSelectedDate(d === selectedDate ? null : d)}
                             availableDates={availableDates}
                         />
+                        <div className="form-check mt-3 mb-3">
+                            <input
+                                type="checkbox"
+                                id="showDeletedSearch"
+                                className="form-check-input"
+                                checked={showDeleted}
+                                onChange={(e) => setShowDeleted(e.target.checked)}
+                            />
+                            <label htmlFor="showDeletedSearch" className="form-check-label">
+                                Показати видалені скріншоти
+                            </label>
+                        </div>
                         <button className="btn btn-primary w-100" onClick={() => handleSearch()} disabled={loading}>
                             {loading ? 'Пошук...' : 'Знайти'}
                         </button>
@@ -1154,16 +1198,34 @@
                                     <div
                                         key={idx}
                                         className="search-card"
-                                        onClick={() => onScreenshotClick({
+                                        onClick={() => !item.image_deleted && onScreenshotClick({
                                             number: item.workplace_number,
                                             last_screenshot_filename: item.filename
                                         }, item.filename)}
+                                        style={{ opacity: item.image_deleted ? 0.7 : 1, cursor: item.image_deleted ? 'default' : 'pointer' }}
                                     >
-                                        <img
-                                            src={`/api/classrooms/329/workplaces/${item.workplace_number}/screenshots/${item.filename}/`}
-                                            className="search-card-img"
-                                            alt="Screenshot"
-                                        />
+                                        <div style={{ position: 'relative' }}>
+                                            <img
+                                                src={item.image_deleted ? 'https://placehold.co/400x300?text=Image+Removed' : `/api/classrooms/329/workplaces/${item.workplace_number}/screenshots/${item.filename}/`}
+                                                className="search-card-img"
+                                                alt="Screenshot"
+                                            />
+                                            {item.image_deleted && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '10px',
+                                                    right: '10px',
+                                                    background: '#dc3545',
+                                                    color: 'white',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold'
+                                                }}>
+                                                    ФАЙЛ ВИДАЛЕНО
+                                                </div>
+                                            )}
+                                        </div>
                                         <div className="search-card-info">
                                             <div className="search-card-user">
                                                 {item.user_name || 'Anonymous'} ({item.os_username || 'unknown'})
@@ -1335,10 +1397,14 @@
 
         const getAllWorkplaces = () => {
             if (!classroomData) return [];
-            return [
+            const list = [
                 ...(classroomData.workplaces_1 || []),
                 ...(classroomData.workplaces_2 || [])
             ];
+            if (classroomData.teacher_workplace) {
+                list.push(classroomData.teacher_workplace);
+            }
+            return list;
         };
 
         const formatTime = (isoString) => {
@@ -1449,7 +1515,7 @@
             <div key={workplace.number} className="card text-center border-success mt-2">
                 <div className="card-body pt-1 pb-1">
                     <h5 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0' }}>
-                        <span>Workplace {workplace.number}</span>
+                        <span>{workplace.number === 19 ? 'Teacher (W-19)' : `Workplace ${workplace.number}`}</span>
                         <div>
                             {workplace.last_screenshot_filename && (
                                 <button
@@ -1607,7 +1673,7 @@
                             className={`btn ${viewMode === 'monitor' ? 'btn-primary' : 'btn-outline-primary'} view-toggle-btn`}
                             onClick={() => setViewMode(viewMode === 'monitor' ? 'list' : 'monitor')}
                         >
-                            {viewMode === 'monitor' ? '📋 Список' : '📺 Моніторинг камер'}
+                            {viewMode === 'monitor' ? '📋 Список' : '📺 Моніторинг екранів'}
                         </button>
 
                         <button
@@ -1637,6 +1703,13 @@
                         ) : (
                             <>
                                 <h1>Кабінет 329</h1>
+                                {classroomData?.teacher_workplace && (
+                                    <div className="row mb-3">
+                                        <div className="col-md-12">
+                                            {renderWorkplaceCard(classroomData.teacher_workplace)}
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="row">
                                     {/* Left column (workplaces 10-18) */}
                                     <div className="col-md-6">

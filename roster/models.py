@@ -72,6 +72,8 @@ class WorkplaceScreenshot(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата створення")
     reported_workplace = models.CharField(max_length=255, null=True, blank=True, verbose_name="Робоче місце (з запиту)")
     os_username = models.CharField(max_length=255, null=True, blank=True, verbose_name="Користувач OS")
+    window_titles = models.JSONField(default=list, blank=True, verbose_name="Заголовки вікон")
+    image_deleted = models.BooleanField(default=False, verbose_name="Зображення видалено")
 
     class Meta:
         ordering = ['-created_at']

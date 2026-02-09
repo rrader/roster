@@ -88,12 +88,12 @@ def rotate_screenshots(dir_path, workplace=None):
             if should_delete:
                 try:
                     os.remove(file_path)
-                    # Sync with DB
+                    # Mark in DB
                     if workplace:
                         WorkplaceScreenshot.objects.filter(
                             workplace=workplace, 
                             screenshot_filename=basename
-                        ).delete()
+                        ).update(image_deleted=True)
                 except OSError as e:
                     print(f"Error deleting {file_path}: {e}")
                 continue
@@ -221,16 +221,18 @@ def get_classroom_329(request):
     from django.db.models import OuterRef, Subquery
     from roster.models import WorkplaceScreenshot
     
-    # Pre-fetch all workplaces info with latest screenshot
+    # Pre-fetch all workplaces info with latest screenshot (not deleted)
     newest = WorkplaceScreenshot.objects.filter(
-        workplace=OuterRef('pk')
+        workplace=OuterRef('pk'),
+        image_deleted=False
     ).order_by('-created_at')
     
     workplaces_qs = Workplace.objects.annotate(
         latest_filename=Subquery(newest.values('screenshot_filename')[:1]),
         latest_at=Subquery(newest.values('created_at')[:1]),
         latest_os_username=Subquery(newest.values('os_username')[:1]),
-        latest_reported_workplace=Subquery(newest.values('reported_workplace')[:1])
+        latest_reported_workplace=Subquery(newest.values('reported_workplace')[:1]),
+        latest_window_titles=Subquery(newest.values('window_titles')[:1])
     )
     workplaces_info = {w.workplace_number: w for w in workplaces_qs}
 
@@ -242,7 +244,8 @@ def get_classroom_329(request):
             'last_screenshot_filename': w.latest_filename if w else None,
             'last_screenshot_at': w.latest_at.isoformat() if w and w.latest_at else None,
             'last_os_username': w.latest_os_username if w else None,
-            'last_reported_workplace': w.latest_reported_workplace if w else None
+            'last_reported_workplace': w.latest_reported_workplace if w else None,
+            'last_window_titles': w.latest_window_titles if w else []
         }
 
     g1 = []
@@ -252,6 +255,8 @@ def get_classroom_329(request):
     g2 = []
     for i in range(10, 19):
         g2.append(get_wp_data(i))
+    
+    teacher_wp = get_wp_data(19)
     
     # Get classroom settings
     classroom, _ = Classroom.objects.get_or_create(
@@ -270,6 +275,7 @@ def get_classroom_329(request):
         'lesson_end': lesson_end.isoformat(),
         'workplaces_1': g1,
         'workplaces_2': g2,
+        'teacher_workplace': teacher_wp,
         'unique_users_count': uniq,
         'usernames': sort_ukrainian(usernames),
         'last_updated': datetime.datetime.now().isoformat(),
@@ -470,6 +476,11 @@ def upload_screenshot_329(request, workplace_id):
     
     # Get username from client (Windows user)
     os_username = request.POST.get('username')
+    window_titles_raw = request.POST.get('window_titles', '[]')
+    try:
+        window_titles = json.loads(window_titles_raw)
+    except (json.JSONDecodeError, TypeError):
+        window_titles = []
     
     # Create directory if not exists
     dir_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', str(workplace_dir_name))
@@ -491,7 +502,7 @@ def upload_screenshot_329(request, workplace_id):
     workplace = None
     try:
         workplace_num = int(workplace_dir_name)
-        if 1 <= workplace_num <= 18:
+        if 1 <= workplace_num <= 19:
             workplace, _ = Workplace.objects.get_or_create(workplace_number=workplace_num)
     except ValueError:
         pass
@@ -527,7 +538,8 @@ def upload_screenshot_329(request, workplace_id):
             screenshot_filename=filename,
             user=active_user,
             reported_workplace=workplace_id,
-            os_username=os_username
+            os_username=os_username,
+            window_titles=window_titles
         )
         # ----------------------------------
     
@@ -580,10 +592,14 @@ def list_screenshots_329(request, workplace_id):
     # Try to fetch from DB first (WorkplaceScreenshot)
     try:
         workplace_num = int(workplace_id)
-        if 1 <= workplace_num <= 18:
+        if 1 <= workplace_num <= 19:
             try:
                 workplace = Workplace.objects.get(workplace_number=workplace_num)
-                screenshots = WorkplaceScreenshot.objects.filter(workplace=workplace).select_related('user').order_by('-created_at')
+                # Only return screenshots where image is NOT deleted for the normal list
+                screenshots = WorkplaceScreenshot.objects.filter(
+                    workplace=workplace,
+                    image_deleted=False
+                ).select_related('user').order_by('-created_at')
                 
                 data = []
                 for s in screenshots:
@@ -596,7 +612,9 @@ def list_screenshots_329(request, workplace_id):
                         'created_at': s.created_at.isoformat(),
                         'user_name': user_name,
                         'os_username': s.os_username,
-                        'reported_workplace': s.reported_workplace
+                        'reported_workplace': s.reported_workplace,
+                        'window_titles': s.window_titles,
+                        'image_deleted': s.image_deleted
                     })
                 
                 # If we have DB records, return them
@@ -661,6 +679,7 @@ def search_screenshots_329(request):
     """
     query = request.GET.get('q', '')
     date_str = request.GET.get('date', '')
+    show_deleted = request.GET.get('show_deleted', 'off') == 'on'
     
     from roster.models import WorkplaceScreenshot
     from django.db.models import Q, Value
@@ -678,7 +697,8 @@ def search_screenshots_329(request):
             Q(user__last_name__icontains=query) |
             Q(user__username__icontains=query) |
             Q(full_name__icontains=query) |
-            Q(full_name_rev__icontains=query)
+            Q(full_name_rev__icontains=query) |
+            Q(window_titles__icontains=query)
         )
     
     if date_str:
@@ -688,7 +708,10 @@ def search_screenshots_329(request):
         except ValueError:
             pass
 
-    if not query and not date_str:
+    if not show_deleted:
+        qs = qs.filter(image_deleted=False)
+
+    if not query and not date_str and not show_deleted:
         return JsonResponse([], safe=False)
 
     screenshots = qs.select_related('user', 'workplace').order_by('-created_at')[:100]
@@ -705,7 +728,9 @@ def search_screenshots_329(request):
             'user_name': user_name,
             'os_username': s.os_username,
             'reported_workplace': s.reported_workplace,
-            'workplace_number': s.workplace.workplace_number
+            'workplace_number': s.workplace.workplace_number,
+            'window_titles': s.window_titles,
+            'image_deleted': s.image_deleted
         })
 
     return JsonResponse(data, safe=False)
