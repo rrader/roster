@@ -864,23 +864,30 @@
                                     marginTop: '5px',
                                     border: '1px solid #333'
                                 }}>
-                                    {((selectedMeta.window_titles || workplace.last_window_titles || [])).length > 0 ? (
-                                        (selectedMeta.window_titles || workplace.last_window_titles || []).map((title, idx) => (
-                                            <div key={idx} style={{
-                                                fontSize: '0.8rem',
-                                                color: '#ccc',
-                                                padding: '3px 0',
-                                                borderBottom: idx === (selectedMeta.window_titles || workplace.last_window_titles || []).length - 1 ? 'none' : '1px solid #222',
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis'
-                                            }} title={title}>
-                                                • {title}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div style={{ fontSize: '0.8rem', color: '#666', fontStyle: 'italic' }}>No data available</div>
-                                    )}
+                                    {(() => {
+                                        // Priority: 1. selectedMeta.window_titles, 2. If it is the latest, workplace.last_window_titles
+                                        let titles = selectedMeta.window_titles;
+                                        if (titles === undefined && isLatest) {
+                                            titles = workplace.last_window_titles;
+                                        }
+
+                                        if (titles && titles.length > 0) {
+                                            return titles.map((title, idx) => (
+                                                <div key={idx} style={{
+                                                    fontSize: '0.8rem',
+                                                    color: '#ccc',
+                                                    padding: '3px 0',
+                                                    borderBottom: idx === titles.length - 1 ? 'none' : '1px solid #222',
+                                                    whiteSpace: 'nowrap',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis'
+                                                }} title={title}>
+                                                    • {title}
+                                                </div>
+                                            ));
+                                        }
+                                        return <div style={{ fontSize: '0.8rem', color: '#666', fontStyle: 'italic' }}>No windows detected</div>;
+                                    })()}
                                 </div>
                             </div>
                         </div>
