@@ -795,10 +795,8 @@
             }).sort((a, b) => a.date - b.date);
         }, [history]);
 
-        if (items.length === 0) return null;
-
-        const minTime = items[0].date.getTime();
-        const maxTime = items[items.length - 1].date.getTime();
+        const minTime = items.length > 0 ? items[0].date.getTime() : 0;
+        const maxTime = items.length > 0 ? items[items.length - 1].date.getTime() : 0;
         const duration = Math.max(1, maxTime - minTime); // ms
 
         // Base width: use container width or at least 800px
@@ -844,6 +842,8 @@
                 });
             }
         }, [selectedFilename, zoom]);
+
+        if (items.length === 0) return null;
 
         return (
             <div className="timeline-container">
