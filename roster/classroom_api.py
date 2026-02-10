@@ -565,8 +565,8 @@ def upload_screenshot_329(request, workplace_id):
             # Step 1: Try finding match by placement (highest priority)
             from django.db.models import Q
             wp_str = str(workplace.workplace_number)
-            # Try various common formats: "1", "329-1", "W-1", "Workplace 1"
-            formats = [wp_str, f"329-{wp_str}", f"W-{wp_str}", f"Workplace {wp_str}"]
+            # Try various common formats: "1", "329-1", "329-01", "W-1", "Workplace 1"
+            formats = [wp_str, f"329-{wp_str}", f"329-0{wp_str}", f"W-{wp_str}", f"Workplace {wp_str}"]
             
             last_placement = WorkplaceUserPlacement.objects.filter(
                 workplace_id__in=formats
