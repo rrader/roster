@@ -560,21 +560,30 @@ def upload_screenshot_329(request, workplace_id):
         # --- NEW: Create History Record ---
         from roster.models import WorkplaceScreenshot, WorkplaceUserPlacement
         
-        # Find active user
-        # Logic: Last placement created before now for this workplace
         active_user = None
         try:
-            # Get the latest placement
-            # Search for both 'N' and '329-N' formats
+            # Step 1: Try finding match by placement (highest priority)
             from django.db.models import Q
             wp_str = str(workplace.workplace_number)
+            # Try various common formats: "1", "329-1", "W-1", "Workplace 1"
+            formats = [wp_str, f"329-{wp_str}", f"W-{wp_str}", f"Workplace {wp_str}"]
+            
             last_placement = WorkplaceUserPlacement.objects.filter(
-                Q(workplace_id=wp_str) | Q(workplace_id=f"329-{wp_str}")
+                workplace_id__in=formats
             ).order_by('-created_at').first()
             
             if last_placement:
-                # Optional: Check if placement is recent
                 active_user = last_placement.user
+            
+            # Step 2: Fallback to OS Username match
+            if not active_user and os_username:
+                # Try to find a user where OS username matches Django username
+                # or a custom profile field if we had one.
+                # Many students have usernames like 'ivanov' or 'i.ivanov'
+                matched_user = User.objects.filter(username__iexact=os_username).first()
+                if matched_user:
+                    active_user = matched_user
+
         except Exception as e:
             print(f"Error finding user: {e}")
         
