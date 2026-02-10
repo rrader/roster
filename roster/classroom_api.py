@@ -59,14 +59,21 @@ def rotate_screenshots(dir_path, workplace=None):
             
             try:
                 # Parse time from filename
-                match = re.match(r'^(\d{8}_(\d{4}))\d{2}\.png$', basename)
+                # Match YYYYMMDD_HHMMSS or YYYYMMDD_HHMM (for backward compatibility)
+                match = re.match(r'^(\d{8}_(\d{4,6}))\.png$', basename)
                 if not match:
                      # Unknown format, maybe keep it to be safe? Or delete?
                      # Let's delete to be clean if it's old
                      should_delete = True
                 else:
-                    ts_str = basename.split('.')[0]
-                    dt = datetime.datetime.strptime(ts_str, "%Y%m%d_%H%M%S")
+                    ts_str = match.group(1)
+                    # We use group 2 length to decide format
+                    time_part_len = len(match.group(2))
+                    
+                    if time_part_len == 6:
+                        dt = datetime.datetime.strptime(ts_str, "%Y%m%d_%H%M%S")
+                    else:
+                        dt = datetime.datetime.strptime(ts_str, "%Y%m%d_%H%M")
                     
                     if dt < datetime.datetime.now() - datetime.timedelta(days=365):
                         should_delete = True
@@ -232,18 +239,27 @@ def get_classroom_329(request):
         latest_at=Subquery(newest.values('created_at')[:1]),
         latest_os_username=Subquery(newest.values('os_username')[:1]),
         latest_reported_workplace=Subquery(newest.values('reported_workplace')[:1]),
-        latest_window_titles=Subquery(newest.values('window_titles')[:1])
+        latest_window_titles=Subquery(newest.values('window_titles')[:1]),
+        latest_user_first_name=Subquery(newest.values('user__first_name')[:1]),
+        latest_user_last_name=Subquery(newest.values('user__last_name')[:1])
     )
     workplaces_info = {w.workplace_number: w for w in workplaces_qs}
 
     def get_wp_data(i):
         w = workplaces_info.get(i)
+        user_name = None
+        if w and w.latest_user_last_name:
+            user_name = f"{w.latest_user_last_name} {w.latest_user_first_name}"
+        elif w and w.latest_user_first_name:
+            user_name = w.latest_user_first_name
+
         return {
             'number': i,
             'placements': [serialize_placement(p) for p in classroom[i]],
             'last_screenshot_filename': w.latest_filename if w else None,
             'last_screenshot_at': w.latest_at.isoformat() if w and w.latest_at else None,
             'last_os_username': w.latest_os_username if w else None,
+            'last_user_name': user_name,
             'last_reported_workplace': w.latest_reported_workplace if w else None,
             'last_window_titles': w.latest_window_titles if w else []
         }
@@ -515,7 +531,7 @@ def upload_screenshot_329(request, workplace_id):
     dir_path = os.path.join(settings.BASE_DIR, 'data', 'screenshots', str(workplace_dir_name))
     os.makedirs(dir_path, exist_ok=True)
     
-    # Generate filename with timestamp
+    # Generate filename with timestamp (including seconds for uniqueness and requested format)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{timestamp}.png"
     file_path = os.path.join(dir_path, filename)

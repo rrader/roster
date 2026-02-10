@@ -38,7 +38,12 @@ def test_screenshot_upload():
         # Testing Rotation Logic specially:
         # I'll create 105 dummy files manually
         if i < 105:
-            fname = f"test_{i:03d}.png"
+            # Create a realistic timestamp for rotation logic test
+            # 20240101_120000 + i seconds
+            h = i // 3600
+            m = (i % 3600) // 60
+            s = i % 60
+            fname = f"20240101_{12+h:02d}{m:02d}{s:02d}.png"
             fpath = os.path.join(dir_path, fname)
             os.makedirs(dir_path, exist_ok=True)
             with open(fpath, 'wb') as f:

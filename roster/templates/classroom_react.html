@@ -499,11 +499,150 @@
         flex-direction: column;
         gap: 15px;
     }
+
+    /* Timeline Styles */
+    .timeline-container {
+        position: relative;
+        background: #111;
+        border-top: 1px solid #333;
+        padding: 10px 20px 20px 20px;
+        overflow-x: auto;
+        user-select: none;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .timeline-track {
+        position: relative;
+        height: 80px;
+        margin-top: 10px;
+        /* Width will be set dynamically */
+    }
+
+    .timeline-item {
+        position: absolute;
+        top: 0;
+        transform: translateX(-50%);
+        cursor: pointer;
+        transition: left 0.3s ease-out, transform 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 2;
+    }
+
+    .timeline-item:hover {
+        z-index: 10;
+        transform: translateX(-50%) scale(1.1);
+    }
+
+    .timeline-thumbnail {
+        width: 100px;
+        height: 56px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        object-fit: cover;
+        background: #000;
+        transition: all 0.2s;
+    }
+
+    .timeline-item.selected .timeline-thumbnail {
+        border: 2px solid var(--primary-color);
+        box-shadow: 0 0 10px var(--primary-color);
+    }
+
+    .timeline-dot {
+        width: 10px;
+        height: 10px;
+        background: #666;
+        border-radius: 50%;
+        margin-top: 15px;
+        transition: all 0.2s;
+        border: 2px solid #111;
+    }
+
+    .timeline-item:hover .timeline-dot {
+        background: #aaa;
+    }
+
+    .timeline-item.selected .timeline-dot {
+        background: var(--primary-color);
+        box-shadow: 0 0 5px var(--primary-color);
+        width: 12px;
+        height: 12px;
+    }
+
+    .timeline-label {
+        font-size: 10px;
+        color: #888;
+        margin-top: 4px;
+        white-space: nowrap;
+    }
+
+    .timeline-controls {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+
+    .timeline-zoom-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 4px 12px;
+        border-radius: 20px;
+        border: 1px solid #333;
+    }
+
+    .zoom-btn {
+        background: none;
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 0 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .zoom-btn:hover {
+        opacity: 1;
+        color: var(--primary-color);
+    }
+
+    .zoom-btn:disabled {
+        opacity: 0.2;
+        cursor: not-allowed;
+    }
+
+    .zoom-slider {
+        width: 100px;
+        cursor: pointer;
+        accent-color: var(--primary-color);
+    }
+
+    .timeline-axis {
+        position: absolute;
+        bottom: 25px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #333;
+        z-index: 1;
+    }
 </style>
+
 
 {% verbatim %}
 <script type="text/babel">
-    const { useState, useEffect, useCallback } = React;
+    const { useState, useEffect, useCallback, useMemo } = React;
 
     function AssignmentModal({ isOpen, onClose, workplaceNumber, onAssign }) {
         const [searchTerm, setSearchTerm] = useState('');
@@ -633,11 +772,130 @@
         );
     }
 
+    function Timeline({ history, selectedFilename, onSelect, workplaceNumber }) {
+        const [zoom, setZoom] = useState(2); // 1 to 5
+        const trackRef = React.useRef(null);
+
+        // Parse dates and find range
+        const items = useMemo(() => {
+            return history.map(item => {
+                const fname = item.filename;
+                let d;
+                if (item.created_at) {
+                    d = new Date(item.created_at);
+                } else {
+                    const m = fname.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})?\.png$/);
+                    if (m) {
+                        d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), m[6] ? parseInt(m[6]) : 0);
+                    } else {
+                        d = new Date();
+                    }
+                }
+                return { ...item, date: d };
+            }).sort((a, b) => a.date - b.date);
+        }, [history]);
+
+        if (items.length === 0) return null;
+
+        const minTime = items[0].date.getTime();
+        const maxTime = items[items.length - 1].date.getTime();
+        const duration = Math.max(1, maxTime - minTime); // ms
+
+        // Base width: use container width or at least 800px
+        const totalWidth = 800 * Math.pow(2.5, zoom - 1);
+
+        const getX = (time) => {
+            return ((time - minTime) / duration) * totalWidth;
+        };
+
+        // Decimation logic:
+        // We want to show images only if they don't overlap too much.
+        const decimatedItems = useMemo(() => {
+            const result = [];
+            let lastThumbX = -1000;
+            const thumbWidth = 110; // thumbnail width + gap
+
+            items.forEach(item => {
+                const x = getX(item.date.getTime());
+                const isSelected = item.filename === selectedFilename;
+
+                // Show thumbnail if it's selected OR it is far enough from the last thumbnail
+                // OR if we are at max zoom
+                let showThumb = false;
+                if (isSelected || x - lastThumbX > thumbWidth || zoom >= 4.5) {
+                    showThumb = true;
+                    lastThumbX = x;
+                }
+
+                result.push({ ...item, x, showThumb });
+            });
+            return result;
+        }, [items, zoom, selectedFilename, totalWidth]);
+
+        // Auto-scroll to selected
+        useEffect(() => {
+            const selected = decimatedItems.find(i => i.filename === selectedFilename);
+            if (selected && trackRef.current) {
+                const container = trackRef.current.parentElement;
+                const targetX = selected.x + 20;
+                container.scrollTo({
+                    left: targetX - container.clientWidth / 2,
+                    behavior: 'smooth'
+                });
+            }
+        }, [selectedFilename, zoom]);
+
+        return (
+            <div className="timeline-container">
+                <div className="timeline-controls">
+                    <div className="timeline-zoom-controls">
+                        <button className="zoom-btn" onClick={() => setZoom(v => Math.max(1, v - 0.5))} disabled={zoom <= 1}>-</button>
+                        <input
+                            type="range"
+                            min="1" max="5" step="0.1"
+                            value={zoom}
+                            onChange={(e) => setZoom(parseFloat(e.target.value))}
+                            className="zoom-slider"
+                        />
+                        <button className="zoom-btn" onClick={() => setZoom(v => Math.min(5, v + 0.5))} disabled={zoom >= 5}>+</button>
+                        <span style={{ fontSize: '10px', color: '#666', width: '30px' }}>{Math.round(zoom * 20)}%</span>
+                    </div>
+                </div>
+                <div style={{ position: 'relative', overflowX: 'auto', flex: 1, paddingBottom: '10px' }}>
+                    <div className="timeline-track" style={{ width: `${totalWidth + 100}px` }} ref={trackRef}>
+                        <div className="timeline-axis"></div>
+                        {decimatedItems.map((item) => (
+                            <div
+                                key={item.filename}
+                                className={`timeline-item ${item.filename === selectedFilename ? 'selected' : ''}`}
+                                style={{ left: `${item.x + 20}px` }}
+                                onClick={() => onSelect(item.filename)}
+                                title={`${item.date.toLocaleString('uk-UA')} - ${item.user_name || 'No user'}`}
+                            >
+                                {item.showThumb ? (
+                                    <img
+                                        src={`/api/classrooms/329/workplaces/${workplaceNumber}/screenshots/${item.filename}/`}
+                                        className="timeline-thumbnail"
+                                        alt="thumb"
+                                    />
+                                ) : (
+                                    <div className="timeline-dot"></div>
+                                )}
+                                <div className="timeline-label">
+                                    {item.date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     function ScreenshotModal({ isOpen, onClose, workplaceId, classroomData, initialFilename }) {
         const [history, setHistory] = useState([]);
         const [selectedFilename, setSelectedFilename] = useState(null);
         const [loadingHistory, setLoadingHistory] = useState(false);
-        const scrollContainerRef = React.useRef(null);
 
         // Reset state when opening for a new workplace
         useEffect(() => {
@@ -690,7 +948,7 @@
                     const newItem = {
                         filename: workplace.last_screenshot_filename,
                         created_at: workplace.last_screenshot_at,
-                        user_name: null, // will remain null until refresh or fetched specifically
+                        user_name: workplace.last_user_name,
                         os_username: workplace.last_os_username,
                         reported_workplace: workplace.last_reported_workplace,
                         window_titles: workplace.last_window_titles || []
@@ -743,7 +1001,7 @@
         if (selectedMeta.created_at) {
             timestamp = new Date(selectedMeta.created_at);
         } else {
-            const match = filenameToShow.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
+            const match = filenameToShow.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})?\.png$/);
             if (match) {
                 timestamp = new Date(
                     parseInt(match[1]),
@@ -751,7 +1009,7 @@
                     parseInt(match[3]),
                     parseInt(match[4]),
                     parseInt(match[5]),
-                    parseInt(match[6])
+                    match[6] ? parseInt(match[6]) : 0
                 );
             } else if (filenameToShow === workplace.last_screenshot_filename) {
                 timestamp = new Date(workplace.last_screenshot_at);
@@ -839,15 +1097,15 @@
                         <div className="screenshot-sidebar">
                             <div className="sidebar-info-block">
                                 <span className="sidebar-info-label">Workplace</span>
-                                <span className="sidebar-info-value">{selectedMeta.reported_workplace || workplace.last_reported_workplace || workplace.number}</span>
+                                <span className="sidebar-info-value">{selectedMeta.reported_workplace || (isLatest ? workplace.last_reported_workplace : null) || workplace.number}</span>
                             </div>
                             <div className="sidebar-info-block">
                                 <span className="sidebar-info-label">OS User</span>
-                                <span className="sidebar-info-value">{selectedMeta.os_username || workplace.last_os_username || 'Unknown'}</span>
+                                <span className="sidebar-info-value">{selectedMeta.os_username || (isLatest ? workplace.last_os_username : null) || 'Unknown'}</span>
                             </div>
                             <div className="sidebar-info-block">
                                 <span className="sidebar-info-label">Student</span>
-                                <span className="sidebar-info-value">{userName || (workplace.placements && workplace.placements.length > 0 ? `${workplace.placements[0].user.last_name} ${workplace.placements[0].user.first_name}` : 'Unknown')}</span>
+                                <span className="sidebar-info-value">{userName || (isLatest && workplace.placements && workplace.placements.length > 0 ? `${workplace.placements[0].user.last_name} ${workplace.placements[0].user.first_name}` : 'Unknown')}</span>
                             </div>
                             <div className="sidebar-info-block">
                                 <span className="sidebar-info-label">Captured</span>
@@ -910,69 +1168,12 @@
                         </div>
                     </div>
 
-                    <div style={{
-                        height: '100px',
-                        borderTop: '1px solid #333',
-                        overflowX: 'auto',
-                        whiteSpace: 'nowrap',
-                        padding: '10px',
-                        textAlign: 'left',
-                        display: 'flex',
-                        gap: '10px'
-                    }} ref={scrollContainerRef}>
-                        {history.map(item => {
-                            const fname = item.filename;
-                            let d;
-                            if (item.created_at) {
-                                d = new Date(item.created_at);
-                            } else {
-                                const m = fname.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.png$/);
-                                if (!m) return null;
-                                d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
-                            }
-
-                            const isSelected = fname === filenameToShow;
-
-                            return (
-                                <div
-                                    key={fname}
-                                    onClick={() => setSelectedFilename(fname)}
-                                    style={{
-                                        display: 'inline-block',
-                                        cursor: 'pointer',
-                                        border: isSelected ? '2px solid var(--primary-color)' : '1px solid #444',
-                                        borderRadius: '4px',
-                                        overflow: 'hidden',
-                                        position: 'relative',
-                                        minWidth: '120px',
-                                        height: '100%',
-                                        opacity: isSelected ? 1 : 0.7
-                                    }}
-                                    title={item.user_name || 'No user info'}
-                                >
-                                    <img
-                                        src={`/api/classrooms/329/workplaces/${workplace.number}/screenshots/${fname}/`}
-                                        alt={fname}
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                    />
-                                    <div style={{
-                                        position: 'absolute',
-                                        bottom: 0,
-                                        left: 0,
-                                        right: 0,
-                                        background: 'rgba(0,0,0,0.7)',
-                                        color: '#fff',
-                                        fontSize: '10px',
-                                        padding: '2px',
-                                        textAlign: 'center'
-                                    }}>
-                                        {formatTimeShort(d)}
-                                        {item.user_name && <div style={{ fontSize: '9px', color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{item.user_name}</div>}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <Timeline
+                        history={history}
+                        selectedFilename={filenameToShow}
+                        onSelect={setSelectedFilename}
+                        workplaceNumber={workplace.number}
+                    />
                 </div>
             </div>
         );
@@ -1589,201 +1790,197 @@
         );
 
         return (
-            <div className="container mt-3">
-                <AssignmentModal
-                    isOpen={modalOpen}
-                    onClose={handleCloseModal}
-                    workplaceNumber={selectedWorkplace}
-                    onAssign={handleAssignSuccess}
-                />
+            <React.Fragment>
+                <div className="container mt-3">
+                    <AssignmentModal
+                        isOpen={modalOpen}
+                        onClose={handleCloseModal}
+                        workplaceNumber={selectedWorkplace}
+                        onAssign={handleAssignSuccess}
+                    />
 
-                <ConfirmDeleteModal
-                    isOpen={deleteModalOpen}
-                    onClose={handleDeleteCancel}
-                    placement={placementToDelete}
-                    onConfirm={handleDeleteConfirm}
-                />
+                    <ConfirmDeleteModal
+                        isOpen={deleteModalOpen}
+                        onClose={handleDeleteCancel}
+                        placement={placementToDelete}
+                        onConfirm={handleDeleteConfirm}
+                    />
 
-                <ScreenshotModal
-                    isOpen={screenshotModalOpen}
-                    onClose={handleCloseScreenshotModal}
-                    workplaceId={screenshotWorkplaceId}
-                    classroomData={classroomData}
-                    initialFilename={initialScreenshotFilename}
-                />
+                    <ScreenshotModal
+                        isOpen={screenshotModalOpen}
+                        onClose={handleCloseScreenshotModal}
+                        workplaceId={screenshotWorkplaceId}
+                        classroomData={classroomData}
+                        initialFilename={initialScreenshotFilename}
+                    />
 
-                {/* Filters */}
-                <div className="row mb-4 g-3">
-                    {/* ... (filters same) ... */}
-                    <div className="col-md-2">
-                        <label htmlFor="dateFilter" className="form-label">Обрати дату:</label>
-                        <input
-                            type="date"
-                            id="dateFilter"
-                            className="form-control"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                        />
-
-                        <label htmlFor="lessonFilter" className="form-label mt-2">Урок:</label>
-                        <select
-                            id="lessonFilter"
-                            className="form-select"
-                            value={lesson}
-                            onChange={(e) => setLesson(e.target.value)}
-                        >
-                            {singles
-                                ? [1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                                    <option key={num} value={num}>{num} урок</option>
-                                ))
-                                : [1, 3, 5, 7].map(num => (
-                                    <option key={num} value={num}>{num}-{num + 1} уроки</option>
-                                ))
-                            }
-                        </select>
-
-                        <div className="form-check mt-2">
+                    <div className="row mb-4 g-3">
+                        <div className="col-md-2">
+                            <label htmlFor="dateFilter" className="form-label">Обрати дату:</label>
                             <input
-                                type="checkbox"
-                                id="pairFilter"
-                                className="form-check-input"
-                                checked={singles}
-                                onChange={(e) => setSingles(e.target.checked)}
+                                type="date"
+                                id="dateFilter"
+                                className="form-control"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
                             />
-                            <label htmlFor="pairFilter" className="form-check-label">
-                                Одиночні уроки
-                            </label>
-                        </div>
 
-                        <div className="form-check mt-2">
-                            <input
-                                type="checkbox"
-                                id="autoUpdateFilter"
-                                className="form-check-input"
-                                checked={!autoUpdate}
-                                onChange={(e) => setAutoUpdate(!e.target.checked)}
-                            />
-                            <label htmlFor="autoUpdateFilter" className="form-check-label">
-                                Не оновлювати
-                            </label>
-                        </div>
-
-                        <div className="form-check mt-2">
-                            <input
-                                type="checkbox"
-                                id="screenshotsFilter"
-                                className="form-check-input"
-                                checked={screenshotsEnabled}
-                                onChange={(e) => handleScreenshotsToggle(e.target.checked)}
-                            />
-                            <label htmlFor="screenshotsFilter" className="form-check-label">
-                                Скріншоти увімкнені
-                            </label>
-                        </div>
-
-                        <div className="mt-2">
-                            <label htmlFor="intervalFilter" className="form-label mb-1" style={{ fontSize: '0.85rem' }}>Частота скріншотів:</label>
+                            <label htmlFor="lessonFilter" className="form-label mt-2">Урок:</label>
                             <select
-                                id="intervalFilter"
-                                className="form-select form-select-sm"
-                                value={screenshotInterval}
-                                onChange={(e) => handleScreenshotIntervalChange(e.target.value)}
+                                id="lessonFilter"
+                                className="form-select"
+                                value={lesson}
+                                onChange={(e) => setLesson(e.target.value)}
                             >
-                                <option value="10">10 секунд</option>
-                                <option value="30">30 секунд</option>
-                                <option value="60">1 хвилина</option>
-                                <option value="600">10 хвилин</option>
+                                {singles
+                                    ? [1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                                        <option key={num} value={num}>{num} урок</option>
+                                    ))
+                                    : [1, 3, 5, 7].map(num => (
+                                        <option key={num} value={num}>{num}-{num + 1} уроки</option>
+                                    ))
+                                }
                             </select>
+
+                            <div className="form-check mt-2">
+                                <input
+                                    type="checkbox"
+                                    id="pairFilter"
+                                    className="form-check-input"
+                                    checked={singles}
+                                    onChange={(e) => setSingles(e.target.checked)}
+                                />
+                                <label htmlFor="pairFilter" className="form-check-label">
+                                    Одиночні уроки
+                                </label>
+                            </div>
+
+                            <div className="form-check mt-2">
+                                <input
+                                    type="checkbox"
+                                    id="autoUpdateFilter"
+                                    className="form-check-input"
+                                    checked={!autoUpdate}
+                                    onChange={(e) => setAutoUpdate(!e.target.checked)}
+                                />
+                                <label htmlFor="autoUpdateFilter" className="form-check-label">
+                                    Не оновлювати
+                                </label>
+                            </div>
+
+                            <div className="form-check mt-2">
+                                <input
+                                    type="checkbox"
+                                    id="screenshotsFilter"
+                                    className="form-check-input"
+                                    checked={screenshotsEnabled}
+                                    onChange={(e) => handleScreenshotsToggle(e.target.checked)}
+                                />
+                                <label htmlFor="screenshotsFilter" className="form-check-label">
+                                    Скріншоти увімкнені
+                                </label>
+                            </div>
+
+                            <div className="mt-2">
+                                <label htmlFor="intervalFilter" className="form-label mb-1" style={{ fontSize: '0.85rem' }}>Частота скріншотів:</label>
+                                <select
+                                    id="intervalFilter"
+                                    className="form-select form-select-sm"
+                                    value={screenshotInterval}
+                                    onChange={(e) => handleScreenshotIntervalChange(e.target.value)}
+                                >
+                                    <option value="10">10 секунд</option>
+                                    <option value="30">30 секунд</option>
+                                    <option value="60">1 хвилина</option>
+                                    <option value="600">10 хвилин</option>
+                                </select>
+                            </div>
+
+                            <hr />
+
+                            <button
+                                className={`btn ${viewMode === 'monitor' ? 'btn-primary' : 'btn-outline-primary'} view-toggle-btn`}
+                                onClick={() => setViewMode(viewMode === 'monitor' ? 'list' : 'monitor')}
+                            >
+                                {viewMode === 'monitor' ? '📋 Список' : '📺 Моніторинг екранів'}
+                            </button>
+
+                            <button
+                                className={`btn ${viewMode === 'search' ? 'btn-primary' : 'btn-outline-primary'} view-toggle-btn`}
+                                onClick={() => setViewMode(viewMode === 'search' ? 'list' : 'search')}
+                            >
+                                {viewMode === 'search' ? '📋 Список' : '🔍 Пошук скріншотів'}
+                            </button>
+
+                            {lastUpdated && (
+                                <div className="mt-3 text-muted small">
+                                    Оновлено: {formatLastUpdated()}
+                                </div>
+                            )}
                         </div>
 
-                        <hr />
-
-                        <button
-                            className={`btn ${viewMode === 'monitor' ? 'btn-primary' : 'btn-outline-primary'} view-toggle-btn`}
-                            onClick={() => setViewMode(viewMode === 'monitor' ? 'list' : 'monitor')}
-                        >
-                            {viewMode === 'monitor' ? '📋 Список' : '📺 Моніторинг екранів'}
-                        </button>
-
-                        <button
-                            className={`btn ${viewMode === 'search' ? 'btn-primary' : 'btn-outline-primary'} view-toggle-btn`}
-                            onClick={() => setViewMode(viewMode === 'search' ? 'list' : 'search')}
-                        >
-                            {viewMode === 'search' ? '📋 Список' : '🔍 Пошук скріншотів'}
-                        </button>
-
-                        {lastUpdated && (
-                            <div className="mt-3 text-muted small">
-                                Оновлено: {formatLastUpdated()}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="col-md-7">
-                        {viewMode === 'monitor' ? (
-                            <MonitorView
-                                workplaces={getAllWorkplaces()}
-                                onScreenshotClick={handleScreenshotClick}
-                            />
-                        ) : viewMode === 'search' ? (
-                            <HistorySearchView
-                                onScreenshotClick={(item) => handleScreenshotClick({ number: item.workplace_number }, item.filename)}
-                            />
-                        ) : (
-                            <>
-                                <h1>Кабінет 329</h1>
-                                {classroomData?.teacher_workplace && (
-                                    <div className="row mb-3">
-                                        <div className="col-md-12">
-                                            {renderWorkplaceCard(classroomData.teacher_workplace)}
+                        <div className="col-md-7">
+                            {viewMode === 'monitor' ? (
+                                <MonitorView
+                                    workplaces={getAllWorkplaces()}
+                                    onScreenshotClick={handleScreenshotClick}
+                                />
+                            ) : viewMode === 'search' ? (
+                                <HistorySearchView
+                                    onScreenshotClick={(item) => handleScreenshotClick({ number: item.workplace_number }, item.filename)}
+                                />
+                            ) : (
+                                <React.Fragment>
+                                    <h1>Кабінет 329</h1>
+                                    {classroomData?.teacher_workplace && (
+                                        <div className="row mb-3">
+                                            <div className="col-md-12">
+                                                {renderWorkplaceCard(classroomData.teacher_workplace)}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="row">
+                                        <div className="col-md-6">
+                                            {classroomData?.workplaces_2?.map(workplace => renderWorkplaceCard(workplace))}
+                                        </div>
+                                        <div className="col-md-6">
+                                            {classroomData?.workplaces_1?.map(workplace => renderWorkplaceCard(workplace))}
                                         </div>
                                     </div>
-                                )}
-                                <div className="row">
-                                    {/* Left column (workplaces 10-18) */}
-                                    <div className="col-md-6">
-                                        {classroomData?.workplaces_2?.map(workplace => renderWorkplaceCard(workplace))}
-                                    </div>
+                                </React.Fragment>
+                            )}
+                        </div>
 
-                                    {/* Right column (workplaces 9-1) */}
-                                    <div className="col-md-6">
-                                        {classroomData?.workplaces_1?.map(workplace => renderWorkplaceCard(workplace))}
-                                    </div>
+                        <div className="col-md-3">
+                            <div className="card text-center border-primary">
+                                <div className="card-body">
+                                    <h5 className="card-title">Поточні фільтри</h5>
+                                    <p className="card-text">
+                                        Уроки з {classroomData?.lesson_from} до {classroomData?.lesson_to}
+                                    </p>
+                                    <p>
+                                        {classroomData?.lesson_start && formatTime(classroomData.lesson_start)} -<br />
+                                        {classroomData?.lesson_end && formatTime(classroomData.lesson_end)}
+                                    </p>
                                 </div>
-                            </>
-                        )}
-                    </div>
-
-                    <div className="col-md-3">
-                        <div className="card text-center border-primary">
-                            <div className="card-body">
-                                <h5 className="card-title">Поточні фільтри</h5>
-                                <p className="card-text">
-                                    Уроки з {classroomData?.lesson_from} до {classroomData?.lesson_to}
-                                </p>
-                                <p>
-                                    {classroomData?.lesson_start && formatTime(classroomData.lesson_start)} -<br />
-                                    {classroomData?.lesson_end && formatTime(classroomData.lesson_end)}
-                                </p>
                             </div>
-                        </div>
 
-                        <div className="alert alert-primary mt-3">
-                            <strong>Користувачі у системі:</strong>{' '}
-                            <span id="studentsCount">{classroomData?.unique_users_count || 0}</span>
-                        </div>
+                            <div className="alert alert-primary mt-3">
+                                <strong>Користувачі у системі:</strong>{' '}
+                                <span id="studentsCount">{classroomData?.unique_users_count || 0}</span>
+                            </div>
 
-                        {/* User names list */}
-                        <div className="list-group mt-3">
-                            {classroomData?.usernames?.map((username, idx) => (
-                                <div key={idx} className="list-group-item list-group-item-action">
-                                    {username}
-                                </div>
-                            ))}
+                            <div className="list-group mt-3">
+                                {classroomData?.usernames?.map((username, idx) => (
+                                    <div key={idx} className="list-group-item list-group-item-action">
+                                        {username}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </React.Fragment>
         );
     }
 
