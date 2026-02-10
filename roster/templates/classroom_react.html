@@ -642,7 +642,43 @@
 
 {% verbatim %}
 <script type="text/babel">
-    const { useState, useEffect, useCallback, useMemo } = React;
+    const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+    function LazyImage({ src, className, alt, style }) {
+        const [isIntersecting, setIsIntersecting] = useState(false);
+        const imgRef = useRef(null);
+
+        useEffect(() => {
+            const observer = new IntersectionObserver(
+                ([entry]) => {
+                    if (entry.isIntersecting) {
+                        setIsIntersecting(true);
+                        observer.disconnect();
+                    }
+                },
+                { rootMargin: '100px' } // Load a bit before it enters the viewport
+            );
+
+            if (imgRef.current) {
+                observer.observe(imgRef.current);
+            }
+
+            return () => observer.disconnect();
+        }, [src]);
+
+        return (
+            <img
+                ref={imgRef}
+                src={isIntersecting ? src : ''}
+                className={className}
+                alt={alt}
+                style={{
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    ...style
+                }}
+            />
+        );
+    }
 
     function AssignmentModal({ isOpen, onClose, workplaceNumber, onAssign }) {
         const [searchTerm, setSearchTerm] = useState('');
@@ -879,7 +915,7 @@
                                 title={`${item.date.toLocaleString('uk-UA')} - ${item.user_name || 'No user'}`}
                             >
                                 {item.showThumb ? (
-                                    <img
+                                    <LazyImage
                                         src={`/api/classrooms/329/workplaces/${workplaceNumber}/screenshots/${item.filename}/?thumb=1`}
                                         className="timeline-thumbnail"
                                         alt="thumb"
@@ -1243,7 +1279,7 @@
                                 title={hasScreenshot ? `Updated: ${lastUpdate.toLocaleTimeString('uk-UA')}` : 'No Signal'}
                             >
                                 {showImage ? (
-                                    <img
+                                    <LazyImage
                                         src={imageUrl}
                                         className={`monitor-screen ${isStale ? 'stale' : ''}`}
                                         alt={`WP ${wp.number}`}
