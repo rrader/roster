@@ -867,7 +867,7 @@
                         <span style={{ fontSize: '10px', color: '#666', width: '30px' }}>{Math.round(zoom * 20)}%</span>
                     </div>
                 </div>
-                <div style={{ position: 'relative', overflowX: 'auto', flex: 1, paddingBottom: '10px' }}>
+                <div style={{ position: 'relative', overflowX: 'auto', flex: 1, paddingBottom: '10px', overscrollBehaviorX: 'none' }}>
                     <div className="timeline-track" style={{ width: `${totalWidth + 100}px` }} ref={trackRef}>
                         <div className="timeline-axis"></div>
                         {decimatedItems.map((item) => (
@@ -880,7 +880,7 @@
                             >
                                 {item.showThumb ? (
                                     <img
-                                        src={`/api/classrooms/329/workplaces/${workplaceNumber}/screenshots/${item.filename}/`}
+                                        src={`/api/classrooms/329/workplaces/${workplaceNumber}/screenshots/${item.filename}/?thumb=1`}
                                         className="timeline-thumbnail"
                                         alt="thumb"
                                     />
@@ -1232,7 +1232,7 @@
                         const showImage = hasScreenshot && !isLost;
 
                         const imageUrl = showImage
-                            ? `/api/classrooms/329/workplaces/${wp.number}/screenshots/${wp.last_screenshot_filename}/?t=${lastUpdate ? lastUpdate.getTime() : Date.now()}`
+                            ? `/api/classrooms/329/workplaces/${wp.number}/screenshots/${wp.last_screenshot_filename}/?thumb=1&t=${lastUpdate ? lastUpdate.getTime() : Date.now()}`
                             : null;
 
                         return (
@@ -1442,7 +1442,7 @@
                                     >
                                         <div style={{ position: 'relative' }}>
                                             <img
-                                                src={item.image_deleted ? 'https://placehold.co/400x300?text=Image+Removed' : `/api/classrooms/329/workplaces/${item.workplace_number}/screenshots/${item.filename}/`}
+                                                src={item.image_deleted ? 'https://placehold.co/400x300?text=Image+Removed' : `/api/classrooms/329/workplaces/${item.workplace_number}/screenshots/${item.filename}/?thumb=1`}
                                                 className="search-card-img"
                                                 alt="Screenshot"
                                             />

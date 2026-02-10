@@ -617,6 +617,26 @@ def serve_screenshot_329(request, workplace_id, filename):
     if not os.path.exists(file_path):
         raise Http404("Screenshot not found")
         
+    if request.GET.get('thumb') == '1':
+        from PIL import Image
+        import io
+        from django.http import HttpResponse
+        
+        try:
+            img = Image.open(file_path)
+            # Resize to 160px width, keeping aspect ratio
+            base_width = 160
+            w_percent = (base_width / float(img.size[0]))
+            h_size = int((float(img.size[1]) * float(w_percent)))
+            img = img.resize((base_width, h_size), Image.Resampling.LANCZOS)
+            
+            buf = io.BytesIO()
+            img.save(buf, format='PNG')
+            return HttpResponse(buf.getvalue(), content_type='image/png')
+        except Exception as e:
+            # Fallback to full image if something goes wrong with processing
+            pass
+
     return FileResponse(open(file_path, 'rb'), content_type='image/png')
 
 
