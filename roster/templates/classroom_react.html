@@ -773,12 +773,12 @@
     }
 
     function Timeline({ history, selectedFilename, onSelect, workplaceNumber }) {
-        const [zoom, setZoom] = useState(2); // 1 to 5
+        const [zoom, setZoom] = useState(4.5); // Default to 90%
         const trackRef = React.useRef(null);
 
         // Parse dates and find range
         const items = useMemo(() => {
-            return history.map(item => {
+            const parsed = history.map(item => {
                 const fname = item.filename;
                 let d;
                 if (item.created_at) {
@@ -792,43 +792,49 @@
                     }
                 }
                 return { ...item, date: d };
-            }).sort((a, b) => a.date - b.date);
+            });
+            // Sort by date DESCENDING (newest first)
+            return parsed.sort((a, b) => b.date - a.date);
         }, [history]);
 
-        const minTime = items.length > 0 ? items[0].date.getTime() : 0;
-        const maxTime = items.length > 0 ? items[items.length - 1].date.getTime() : 0;
-        const duration = Math.max(1, maxTime - minTime); // ms
-
-        // Base width: use container width or at least 800px
-        const totalWidth = 800 * Math.pow(2.5, zoom - 1);
-
-        const getX = (time) => {
-            return ((time - minTime) / duration) * totalWidth;
-        };
-
-        // Decimation logic:
-        // We want to show images only if they don't overlap too much.
+        // Gap compression and positioning logic
         const decimatedItems = useMemo(() => {
-            const result = [];
-            let lastThumbX = -1000;
-            const thumbWidth = 110; // thumbnail width + gap
+            if (items.length === 0) return [];
 
-            items.forEach(item => {
-                const x = getX(item.date.getTime());
+            const MAX_VISUAL_GAP_MS = 10 * 60 * 1000; // Cap gaps at 10 minutes visually
+            const baseWidth = 800 * Math.pow(2.5, zoom - 1);
+
+            // We need a total "visual duration" to map pixels
+            let visualDuration = 0;
+            const processed = [];
+
+            for (let i = 0; i < items.length; i++) {
+                if (i > 0) {
+                    const realGap = Math.abs(items[i].date - items[i - 1].date);
+                    visualDuration += Math.min(realGap, MAX_VISUAL_GAP_MS);
+                }
+                processed.push({ ...items[i], visualOffset: visualDuration });
+            }
+
+            const totalVisualDuration = Math.max(1, visualDuration);
+            const thumbWidth = 110;
+            let lastThumbX = -1000;
+
+            return processed.map(item => {
+                const x = (item.visualOffset / totalVisualDuration) * baseWidth;
                 const isSelected = item.filename === selectedFilename;
 
-                // Show thumbnail if it's selected OR it is far enough from the last thumbnail
-                // OR if we are at max zoom
                 let showThumb = false;
                 if (isSelected || x - lastThumbX > thumbWidth || zoom >= 4.5) {
                     showThumb = true;
                     lastThumbX = x;
                 }
 
-                result.push({ ...item, x, showThumb });
+                return { ...item, x, showThumb };
             });
-            return result;
-        }, [items, zoom, selectedFilename, totalWidth]);
+        }, [items, zoom, selectedFilename]);
+
+        const totalWidth = 800 * Math.pow(2.5, zoom - 1);
 
         // Auto-scroll to selected
         useEffect(() => {
