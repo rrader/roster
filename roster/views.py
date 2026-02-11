@@ -38,14 +38,20 @@ def make_username(name, surname, uid):
 
 
 def try_fuzzy_match(form):
-    surname = form.cleaned_data['surname']
-    users = User.objects.filter(last_name__istartswith=surname[0])
+    surname = form.cleaned_data['surname'].lower()
+    if not surname:
+        return []
+    
+    first_letter = surname[0]
+    users = User.objects.all()
 
     matched = []
     for user in users:
-        d = algorithims.levenshtein(surname, user.last_name)
-        if d >= 0.6:
-            matched.append((user, d))
+        last_name_lower = (user.last_name or '').lower()
+        if last_name_lower.startswith(first_letter):
+            d = algorithims.levenshtein(surname, last_name_lower)
+            if d >= 0.6:
+                matched.append((user, d))
 
     # sort by distance
     return [k for k, v in sorted(matched, key=lambda item: item[1], reverse=True)]
@@ -220,23 +226,25 @@ def index(request):
 
 
 def search_users_ajax(request):
-    query = request.GET.get('surname')
+    query = request.GET.get('surname', '').lower()
     data = []
 
     if query:
-        from django.db.models import Q, Value
-        from django.db.models.functions import Concat
+        users = User.objects.all()
+        matched = []
+        for user in users:
+            first_name = (user.first_name or '').lower()
+            last_name = (user.last_name or '').lower()
+            full_name = f"{last_name} {first_name}"
+            full_name_rev = f"{first_name} {last_name}"
+            
+            if (query in first_name or 
+                query in last_name or 
+                query in full_name or 
+                query in full_name_rev):
+                matched.append(user)
         
-        users = User.objects.annotate(
-            full_name=Concat('last_name', Value(' '), 'first_name'),
-            full_name_rev=Concat('first_name', Value(' '), 'last_name')
-        ).filter(
-            Q(last_name__icontains=query) |
-            Q(first_name__icontains=query) |
-            Q(full_name__icontains=query) |
-            Q(full_name_rev__icontains=query)
-        ).distinct()
-        data = [user_json(user) for user in users]
+        data = [user_json(user) for user in matched]
 
     return JsonResponse(data, safe=False)
 
@@ -513,18 +521,25 @@ def group_detail(request, group_id):
                 return redirect('group_detail', group_id=group.id)
             else:
                 # Search for users
-                surname = add_form.cleaned_data['surname']
-                name = add_form.cleaned_data.get('name', '')
+                surname = add_form.cleaned_data['surname'].lower()
+                name = add_form.cleaned_data.get('name', '').lower()
                 
-                if name:
-                    proposed_users = User.objects.filter(
-                        last_name__icontains=surname,
-                        first_name__icontains=name
-                    )
-                else:
-                    proposed_users = User.objects.filter(last_name__icontains=surname)
+                users = User.objects.all()
+                proposed_users = []
+                for user in users:
+                    u_last = (user.last_name or '').lower()
+                    u_first = (user.first_name or '').lower()
+                    
+                    if name:
+                        if surname in u_last and name in u_first:
+                            proposed_users.append(user)
+                    else:
+                        if surname in u_last:
+                            proposed_users.append(user)
                 
-                proposed_users = proposed_users.order_by('last_name', 'first_name')[:10]
+                # Sort and limit
+                proposed_users.sort(key=lambda u: (u.last_name, u.first_name))
+                proposed_users = proposed_users[:10]
 
     return render(request, 'group_detail.html', {
         'group': group,
