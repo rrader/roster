@@ -163,19 +163,31 @@ def get_classroom_329(request):
     curr_lesson_1based = current_lesson(datetime.datetime.now())
     if curr_lesson_1based < 1: curr_lesson_1based = 1 # Safety
     
-    if singles:
-        # Map 1-based directly
-        default_lesson_fe = curr_lesson_1based
+    pair_param = request.GET.get('pair')
+    if pair_param:
+        try:
+            pair_int = int(pair_param)
+            if 1 <= pair_int <= 4:
+                lesson = (pair_int - 1) * 2 + 1
+                singles = False
+            else:
+                return JsonResponse({'error': 'Pair must be between 1 and 4'}, status=400)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid pair parameter'}, status=400)
     else:
-        # Paired mode: Snap to pair start (1, 3, 5...)
-        # 1,2 -> 1 ('1-2')
-        # 3,4 -> 3 ('3-4')
-        # 5,6 -> 5 ('5-6')
-        default_lesson_fe = ((curr_lesson_1based - 1) // 2) * 2 + 1
+        if singles:
+            # Map 1-based directly
+            default_lesson_fe = curr_lesson_1based
+        else:
+            # Paired mode: Snap to pair start (1, 3, 5...)
+            # 1,2 -> 1 ('1-2')
+            # 3,4 -> 3 ('3-4')
+            # 5,6 -> 5 ('5-6')
+            default_lesson_fe = ((curr_lesson_1based - 1) // 2) * 2 + 1
 
-    if default_lesson_fe < 1: default_lesson_fe = 1
-    
-    lesson = int(request.GET.get('lesson', default_lesson_fe))
+        if default_lesson_fe < 1: default_lesson_fe = 1
+        
+        lesson = int(request.GET.get('lesson', default_lesson_fe))
     
     if lesson < 1 or lesson > 8:
         return JsonResponse({'error': 'Lesson must be between 1 and 8'}, status=400)
@@ -193,13 +205,14 @@ def get_classroom_329(request):
         lesson_from = base_idx
         lesson_to = base_idx + 1
     
-    # Get lesson times
+    # Get lesson times (allow 10 min early start window for placements)
     lesson_start = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_from]['start'])
     lesson_end = datetime.datetime.combine(date, settings.LESSONS_SCHEDULE[lesson_to]['end'])
+    window_start = lesson_start - datetime.timedelta(minutes=10)
     
     # Query placements
     placements = WorkplaceUserPlacement.objects.filter(
-        created_at__gte=lesson_start,
+        created_at__gte=window_start,
         created_at__lte=lesson_end
     ).select_related('user').order_by('created_at')
     
@@ -279,11 +292,34 @@ def get_classroom_329(request):
         classroom_id='329',
         defaults={'screenshots_enabled': True}
     )
+
+    students_list = []
+    for wp_list in [g1, g2, [teacher_wp]]:
+        for wp_entry in wp_list:
+            wp_num = wp_entry['number']
+            for pl in wp_entry.get('placements', []):
+                u = pl['user']
+                students_list.append({
+                    'id': u['id'],
+                    'username': u['username'],
+                    'first_name': u['first_name'],
+                    'last_name': u['last_name'],
+                    'full_name': f"{u['last_name']} {u['first_name']}",
+                    'workplace_number': wp_num,
+                    'workplace_id': pl['workplace_id'],
+                    'created_at': pl['created_at'],
+                    'last_screenshot_at': wp_entry['last_screenshot_at'],
+                    'last_window_titles': wp_entry['last_window_titles'],
+                    'is_teacher': (wp_num == 19 or u['username'] == 'admin')
+                })
+
+    pair_val = ((lesson - 1) // 2) + 1 if not singles and lesson in (1, 3, 5, 7) else None
     
     return JsonResponse({
         'classroom_id': 329,
         'date': date_str,
         'lesson': lesson,
+        'pair': pair_val,
         'singles': singles,
         'lesson_from': lesson_from,
         'lesson_to': lesson_to,
@@ -294,6 +330,7 @@ def get_classroom_329(request):
         'teacher_workplace': teacher_wp,
         'unique_users_count': uniq,
         'usernames': sort_ukrainian(usernames),
+        'students': sorted(students_list, key=lambda x: x['workplace_number']),
         'last_updated': datetime.datetime.now().isoformat(),
         'screenshots_enabled': classroom.screenshots_enabled,
         'screenshot_interval': classroom.screenshot_interval,

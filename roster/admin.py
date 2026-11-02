@@ -58,11 +58,24 @@ class ClassroomAdmin(admin.ModelAdmin):
     list_display = ('classroom_id', 'screenshots_enabled', 'screenshot_interval', 'updated_at')
 
 
+class WorkplaceUserPlacementAdmin(admin.ModelAdmin):
+    list_display = ('workplace_id', 'user', 'created_at')
+    search_fields = (
+        'workplace_id',
+        'user__username',
+        'user__first_name',
+        'user__last_name',
+        'user__email',
+    )
+    list_filter = ('created_at',)
+    date_hierarchy = 'created_at'
+
+
 # Unregister the default User admin and register our custom one
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
 
-admin.site.register(WorkplaceUserPlacement)
+admin.site.register(WorkplaceUserPlacement, WorkplaceUserPlacementAdmin)
 admin.site.register(StudentGroup, StudentGroupAdmin)
 admin.site.register(StudentGroupFeature)
 admin.site.register(Workplace)
