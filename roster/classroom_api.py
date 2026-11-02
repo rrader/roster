@@ -48,6 +48,7 @@ def rotate_screenshots(dir_path, workplace=None):
         
         # Process older files
         last_kept_time = None
+        to_delete_db = []
         
         for i in range(100, len(files)):
             file_path = files[i]
@@ -95,12 +96,7 @@ def rotate_screenshots(dir_path, workplace=None):
             if should_delete:
                 try:
                     os.remove(file_path)
-                    # Mark in DB
-                    if workplace:
-                        WorkplaceScreenshot.objects.filter(
-                            workplace=workplace, 
-                            screenshot_filename=basename
-                        ).update(image_deleted=True)
+                    to_delete_db.append(basename)
                 except OSError as e:
                     print(f"Error deleting {file_path}: {e}")
                 continue
@@ -120,6 +116,12 @@ def rotate_screenshots(dir_path, workplace=None):
                         resized.save(file_path, optimize=True, quality=85)
             except Exception as e:
                 print(f"Error compressing {file_path}: {e}")
+
+        if to_delete_db and workplace:
+            WorkplaceScreenshot.objects.filter(
+                workplace=workplace,
+                screenshot_filename__in=to_delete_db
+            ).update(image_deleted=True)
 
     except Exception as e:
         print(f"Error in rotate_screenshots: {e}")
@@ -589,8 +591,10 @@ def upload_screenshot_329(request, workplace_id):
     except ValueError:
         pass
 
-    # Validation logic: Smart Retention
-    rotate_screenshots(dir_path, workplace)
+    # Validation logic: Smart Retention (run periodically ~3% of uploads to avoid SQLite locking)
+    import random
+    if random.random() < 0.03:
+        rotate_screenshots(dir_path, workplace)
 
     # Update database
     if workplace:
